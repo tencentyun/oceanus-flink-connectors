@@ -16,24 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.architecture;
+package org.apache.flink.connector.pulsar.table.testutils;
 
-import org.apache.flink.architecture.common.ImportOptions;
+import org.apache.flink.connector.pulsar.sink.writer.context.PulsarSinkContext;
+import org.apache.flink.connector.pulsar.sink.writer.router.TopicRouter;
+import org.apache.flink.table.data.RowData;
 
-import com.tngtech.archunit.core.importer.ImportOption;
-import com.tngtech.archunit.junit.AnalyzeClasses;
-import com.tngtech.archunit.junit.ArchTest;
-import com.tngtech.archunit.junit.ArchTests;
+import java.util.List;
 
-/** Architecture tests for test code. */
-@AnalyzeClasses(
-        packages = "org.apache.flink.connector.pulsar",
-        importOptions = {
-            ImportOption.OnlyIncludeTests.class,
-            ImportOptions.ExcludeScalaImportOption.class,
-            ImportOptions.ExcludeShadedImportOption.class
-        })
-public class TestCodeArchitectureTest {
-    @ArchTest
-    public static final ArchTests COMMON_TESTS = ArchTests.in(TestCodeArchitectureTestBase.class);
+/** A mock topic Router for testing purposes only. */
+public class MockTopicRouter implements TopicRouter<RowData> {
+
+    private static final long serialVersionUID = 1316133122715449818L;
+
+    @Override
+    public String route(
+            RowData rowData, String key, List<String> partitions, PulsarSinkContext context) {
+        return "never-exist-topic";
+    }
 }
