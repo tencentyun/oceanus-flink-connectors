@@ -226,9 +226,11 @@ public class SchemaTranslator {
             case AUTO:
             case AUTO_PUBLISH:
                 LOG.error(
-                        "Do not support {} schema, using RAW instead",
-                        pulsarSchemaInfo.getType().toString());
-                break;
+                        "Can't decide format for {} schema", pulsarSchemaInfo.getType().toString());
+                throw new UnsupportedOperationException(
+                        String.format(
+                                "Can't decide format for %s schema",
+                                pulsarSchemaInfo.getType().toString()));
             default:
                 break;
         }

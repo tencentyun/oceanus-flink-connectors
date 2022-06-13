@@ -18,50 +18,52 @@
 
 package org.apache.flink.connector.pulsar.table.catalog;
 
-import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.table.catalog.CommonCatalogOptions;
 
 /** {@link ConfigOption}s for {@link PulsarCatalog}. */
-@Internal
+@PublicEvolving
 public final class PulsarCatalogFactoryOptions {
     public static final ConfigOption<String> CATALOG_TENANT =
             ConfigOptions.key("catalog-tenant")
                     .stringType()
                     .defaultValue(PulsarCatalog.DEFAULT_TENANT)
-                    .withDescription("Pulsar tenant used to store all table information");
+                    .withDescription("The Pulsar tenant that stores all table information.");
 
     public static final ConfigOption<String> DEFAULT_DATABASE =
             ConfigOptions.key(CommonCatalogOptions.DEFAULT_DATABASE_KEY)
                     .stringType()
                     .defaultValue(PulsarCatalog.DEFAULT_DB)
                     .withDescription(
-                            "The default database when using PulsarCatalog. It will be created if not exist.");
+                            "The default database when using PulsarCatalog. It will be created if it does not exist.");
 
     public static final ConfigOption<String> CATALOG_ADMIN_URL =
             ConfigOptions.key("catalog-admin-url")
                     .stringType()
                     .defaultValue("http://localhost:8080")
-                    .withDescription("Required pulsar cluster admin url");
+                    .withDescription("(Required) The admin URL of the Pulsar cluster.");
 
     public static final ConfigOption<String> CATALOG_SERVICE_URL =
             ConfigOptions.key("catalog-service-url")
                     .stringType()
                     .defaultValue("pulsar://localhost:6650")
-                    .withDescription("Required pulsar cluster service url");
+                    .withDescription("(Required) The service URL of the Pulsar cluster.");
 
     public static final ConfigOption<String> AUTH_PLUGIN =
             ConfigOptions.key("catalog-auth-plugin")
                     .stringType()
                     .noDefaultValue()
-                    .withDescription("Auth plugin name for accessing pulsar cluster");
+                    .withDescription(
+                            "The name of the authentication plugin for accessing the Pulsar cluster.");
 
     public static final ConfigOption<String> AUTH_PARAMS =
             ConfigOptions.key("catalog-auth-params")
                     .stringType()
                     .noDefaultValue()
-                    .withDescription("Auth params for accessing pulsar cluster");
+                    .withDescription(
+                            "The authentication parameters for accessing the Pulsar cluster.");
 
     private PulsarCatalogFactoryOptions() {}
 }

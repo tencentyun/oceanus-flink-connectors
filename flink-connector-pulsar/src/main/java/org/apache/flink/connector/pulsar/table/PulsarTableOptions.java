@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.pulsar.table;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.description.Description;
@@ -39,7 +40,8 @@ import static org.apache.flink.table.factories.FactoryUtil.FORMAT_SUFFIX;
  * org.apache.flink.connector.pulsar.source.PulsarSourceOptions}, and {@link
  * org.apache.flink.connector.pulsar.sink.PulsarSinkOptions}.
  */
-public class PulsarTableOptions {
+@PublicEvolving
+public final class PulsarTableOptions {
 
     private PulsarTableOptions() {}
 
@@ -49,7 +51,11 @@ public class PulsarTableOptions {
                     .asList()
                     .noDefaultValue()
                     .withDescription(
-                            "Topic names from which the table is read. It is required for both source and sink");
+                            Description.builder()
+                                    .text(
+                                            "Topic name(s) the table reads data from. It can be a single topic name or a list of topic names separated by a semicolon symbol (%s) like %s.",
+                                            code(";"), code("topic-1;topic-2"))
+                                    .build());
 
     // --------------------------------------------------------------------------------------------
     // Table Source Options
@@ -60,7 +66,11 @@ public class PulsarTableOptions {
                     .enumType(SubscriptionType.class)
                     .defaultValue(SubscriptionType.Exclusive)
                     .withDescription(
-                            "Subscription type for Pulsar source to use. Only \"Exclusive\" and \"Shared\" are allowed.");
+                            Description.builder()
+                                    .text(
+                                            "The [subscription type](https://nightlies.apache.org/flink/flink-docs-master/docs/connectors/datastream/pulsar/#pulsar-subscriptions) that is supported by the [Pulsar DataStream source connector](https://nightlies.apache.org/flink/flink-docs-master/docs/connectors/datastream/pulsar/#pulsar-source). Currently, only %s and %s subscription types are supported.",
+                                            code("Exclusive"), code("Shared"))
+                                    .build());
 
     /**
      * Exactly same as {@link
@@ -74,9 +84,7 @@ public class PulsarTableOptions {
                     .withDescription(
                             Description.builder()
                                     .text(
-                                            "Specify the subscription name consumer used by runtime PulsarSource. If not provided, a random subscription name will be generated")
-                                    .text(
-                                            " This argument is required when constructing the consumer.")
+                                            "The subscription name of the consumer that is used by the runtime [Pulsar DataStream source connector](https://nightlies.apache.org/flink/flink-docs-master/docs/connectors/datastream/pulsar/#pulsar-source). This argument is required for constructing the consumer.")
                                     .build());
 
     public static final ConfigOption<String> SOURCE_START_FROM_MESSAGE_ID =
@@ -84,18 +92,27 @@ public class PulsarTableOptions {
                     .stringType()
                     .noDefaultValue()
                     .withDescription(
-                            "Optional message id used to specify a consuming starting point for "
-                                    + "source. Use \"earliest\", \"latest\" or pass in a message id "
-                                    + "representation in \"ledgerId:entryId:partitionId\", "
-                                    + "such as \"12:2:-1\"");
+                            Description.builder()
+                                    .text(
+                                            "Optional message id used to specify a consuming starting point for "
+                                                    + "source. Use %s, %s or pass in a message id "
+                                                    + "representation in %s, "
+                                                    + "such as %s",
+                                            code("earliest"),
+                                            code("latest"),
+                                            code("ledgerId:entryId:partitionId"),
+                                            code("12:2:-1"))
+                                    .build());
 
     public static final ConfigOption<Long> SOURCE_START_FROM_PUBLISH_TIME =
             ConfigOptions.key("source.start.publish-time")
                     .longType()
                     .noDefaultValue()
                     .withDescription(
-                            "Optional publish timestamp used to specify a consuming starting point for source.");
-
+                            Description.builder()
+                                    .text(
+                                            "(Optional) the publish timestamp that is used to specify a starting point for the [Pulsar DataStream source connector](https://nightlies.apache.org/flink/flink-docs-master/docs/connectors/datastream/pulsar/#pulsar-source) to consume data.")
+                                    .build());
     // --------------------------------------------------------------------------------------------
     // Table Sink Options
     // --------------------------------------------------------------------------------------------
@@ -105,24 +122,32 @@ public class PulsarTableOptions {
                     .stringType()
                     .noDefaultValue()
                     .withDescription(
-                            "Optional custom TopicRouter implementation class URL to use in sink. If this option"
-                                    + "is provided, \"sink.topic-routing-mode\" will be ignored.");
+                            Description.builder()
+                                    .text(
+                                            "(Optional) the custom topic router class URL that is used in the [Pulsar DataStream sink connector](https://nightlies.apache.org/flink/flink-docs-master/docs/connectors/datastream/pulsar/#pulsar-sink). If this option is provided, the %s option will be ignored.",
+                                            code("sink.topic-routing-mode"))
+                                    .build());
 
     public static final ConfigOption<TopicRoutingMode> SINK_TOPIC_ROUTING_MODE =
             ConfigOptions.key("sink.topic-routing-mode")
                     .enumType(TopicRoutingMode.class)
                     .defaultValue(TopicRoutingMode.ROUND_ROBIN)
                     .withDescription(
-                            "Optional TopicRoutingMode. There are \"round-robin\" and "
-                                    + "\"message-key-hash\" two options. Default use"
-                                    + "\"round-robin\", if you want to use a custom"
-                                    + "TopicRouter implementation, use \"sink.custom-topic-router\"");
+                            Description.builder()
+                                    .text(
+                                            "(Optional) the topic routing mode. Available options are %s and %s. By default, it is set to %s. If you want to use a custom topic router, use the %s option to determine the partition for a particular message.",
+                                            code("round-robin"),
+                                            code("message-key-hash"),
+                                            code("round-robin"),
+                                            code("sink.custom-topic-router"))
+                                    .build());
 
     public static final ConfigOption<Duration> SINK_MESSAGE_DELAY_INTERVAL =
             ConfigOptions.key("sink.message-delay-interval")
                     .durationType()
                     .defaultValue(Duration.ZERO)
-                    .withDescription("Optional sink message delay delivery interval.");
+                    .withDescription(
+                            "(Optional) the message delay delivery interval that is used in the [Pulsar DataStream sink connector](https://nightlies.apache.org/flink/flink-docs-master/docs/connectors/datastream/pulsar/#pulsar-sink).");
 
     // --------------------------------------------------------------------------------------------
     // Format Options
@@ -142,10 +167,7 @@ public class PulsarTableOptions {
                     .asList()
                     .defaultValues()
                     .withDescription(
-                            "Defines an explicit list of physical columns from the "
-                                    + "table schema which should be decoded/encoded "
-                                    + "from the key bytes of a Pulsar message. By default, "
-                                    + "this list is empty and thus a key is undefined.");
+                            "An explicit list of physical columns from the table schema that are decoded/encoded from the key bytes of a Pulsar message. By default, this list is empty and thus a key is undefined.");
 
     public static final ConfigOption<String> VALUE_FORMAT =
             ConfigOptions.key("value" + FORMAT_SUFFIX)
@@ -226,5 +248,5 @@ public class PulsarTableOptions {
             ConfigOptions.key("explicit")
                     .booleanType()
                     .defaultValue(true)
-                    .withDescription("Indicate if the table is an explict flink table");
+                    .withDescription("Indicate if the table is an explicit Flink table.");
 }
