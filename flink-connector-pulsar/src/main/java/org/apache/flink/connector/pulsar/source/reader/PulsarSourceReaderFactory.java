@@ -23,8 +23,11 @@ import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
+import org.apache.flink.connector.pulsar.common.schema.BytesSchema;
+import org.apache.flink.connector.pulsar.common.schema.PulsarSchema;
 import org.apache.flink.connector.pulsar.source.config.SourceConfiguration;
 import org.apache.flink.connector.pulsar.source.reader.deserializer.PulsarDeserializationSchema;
+import org.apache.flink.connector.pulsar.source.reader.deserializer.PulsarSchemaWrapper;
 import org.apache.flink.connector.pulsar.source.reader.emitter.PulsarRecordEmitter;
 import org.apache.flink.connector.pulsar.source.reader.source.PulsarOrderedSourceReader;
 import org.apache.flink.connector.pulsar.source.reader.source.PulsarUnorderedSourceReader;
@@ -36,6 +39,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClient;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
@@ -73,6 +77,16 @@ public final class PulsarSourceReaderFactory {
         PulsarClient pulsarClient = createClient(sourceConfiguration);
         PulsarAdmin pulsarAdmin = createAdmin(sourceConfiguration);
 
+        // Choose the right schema to use.
+        Schema<byte[]> schema;
+        if (sourceConfiguration.isEnableSchemaEvolution()) {
+            PulsarSchema<?> pulsarSchema =
+                    ((PulsarSchemaWrapper<?>) deserializationSchema).pulsarSchema();
+            schema = new BytesSchema(pulsarSchema);
+        } else {
+            schema = Schema.BYTES;
+        }
+
         // Create a message queue with the predefined source option.
         int queueCapacity = sourceConfiguration.getMessageQueueCapacity();
         FutureCompletingBlockingQueue<RecordsWithSplitIds<Message<byte[]>>> elementsQueue =
@@ -91,6 +105,7 @@ public final class PulsarSourceReaderFactory {
                                     pulsarClient,
                                     pulsarAdmin,
                                     sourceConfiguration,
+                                    schema,
                                     cryptoKeyReader);
 
             return new PulsarOrderedSourceReader<>(
@@ -116,6 +131,7 @@ public final class PulsarSourceReaderFactory {
                                     pulsarClient,
                                     pulsarAdmin,
                                     sourceConfiguration,
+                                    schema,
                                     cryptoKeyReader,
                                     coordinatorClient);
 

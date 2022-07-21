@@ -32,6 +32,7 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -57,8 +58,9 @@ public class PulsarOrderedPartitionSplitReader extends PulsarPartitionSplitReade
             PulsarClient pulsarClient,
             PulsarAdmin pulsarAdmin,
             SourceConfiguration sourceConfiguration,
+            Schema<byte[]> schema,
             @Nullable CryptoKeyReader cryptoKeyReader) {
-        super(pulsarClient, pulsarAdmin, sourceConfiguration, cryptoKeyReader);
+        super(pulsarClient, pulsarAdmin, sourceConfiguration, schema, cryptoKeyReader);
     }
 
     @Override

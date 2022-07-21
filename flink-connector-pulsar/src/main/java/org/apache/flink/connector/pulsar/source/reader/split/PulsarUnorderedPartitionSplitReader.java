@@ -30,6 +30,7 @@ import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClient;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
@@ -57,8 +58,6 @@ public class PulsarUnorderedPartitionSplitReader extends PulsarPartitionSplitRea
     private static final Logger LOG =
             LoggerFactory.getLogger(PulsarUnorderedPartitionSplitReader.class);
 
-    private static final Duration REDELIVER_TIME = Duration.ofSeconds(3);
-
     private final TransactionCoordinatorClient coordinatorClient;
 
     @Nullable private Transaction uncommittedTransaction;
@@ -67,9 +66,10 @@ public class PulsarUnorderedPartitionSplitReader extends PulsarPartitionSplitRea
             PulsarClient pulsarClient,
             PulsarAdmin pulsarAdmin,
             SourceConfiguration sourceConfiguration,
+            Schema<byte[]> schema,
             @Nullable CryptoKeyReader cryptoKeyReader,
             TransactionCoordinatorClient coordinatorClient) {
-        super(pulsarClient, pulsarAdmin, sourceConfiguration, cryptoKeyReader);
+        super(pulsarClient, pulsarAdmin, sourceConfiguration, schema, cryptoKeyReader);
 
         this.coordinatorClient = coordinatorClient;
     }

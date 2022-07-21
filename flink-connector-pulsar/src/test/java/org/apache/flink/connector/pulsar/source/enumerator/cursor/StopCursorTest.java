@@ -55,7 +55,11 @@ class StopCursorTest extends PulsarTestSuiteBase {
 
         PulsarOrderedPartitionSplitReader splitReader =
                 new PulsarOrderedPartitionSplitReader(
-                        operator().client(), operator().admin(), sourceConfig(), null);
+                        operator().client(),
+                        operator().admin(),
+                        sourceConfig(),
+                        Schema.BYTES,
+                        null);
         // send the first message and set the stopCursor to filter any late stopCursor
         operator()
                 .sendMessage(

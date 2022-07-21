@@ -18,10 +18,8 @@
 package org.apache.flink.connector.pulsar.source.reader.deserializer;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.connector.pulsar.common.schema.PulsarSchema;
-import org.apache.flink.connector.pulsar.source.config.SourceConfiguration;
 import org.apache.flink.util.Collector;
 
 import org.apache.pulsar.client.api.Message;
@@ -37,37 +35,23 @@ import static org.apache.flink.connector.pulsar.common.schema.PulsarSchemaUtils.
  * @param <T> The output type of the message.
  */
 @Internal
-class PulsarSchemaWrapper<T> implements PulsarDeserializationSchema<T> {
+public class PulsarSchemaWrapper<T> implements PulsarDeserializationSchema<T> {
     private static final long serialVersionUID = -4864701207257059158L;
 
-    /** The serializable pulsar schema, it wrap the schema with type class. */
+    /** The serializable pulsar schema, it wraps the schema with type class. */
     private final PulsarSchema<T> pulsarSchema;
-
-    private boolean isSchemaEvolutionEnabled;
 
     public PulsarSchemaWrapper(PulsarSchema<T> pulsarSchema) {
         this.pulsarSchema = pulsarSchema;
     }
 
     @Override
-    public void open(
-            DeserializationSchema.InitializationContext context, SourceConfiguration configuration)
-            throws Exception {
-        this.isSchemaEvolutionEnabled = configuration.isEnableSchemaEvolution();
-    }
+    public void deserialize(Message<byte[]> message, Collector<T> out) throws Exception {
+        Schema<T> schema = this.pulsarSchema.getPulsarSchema();
+        byte[] bytes = message.getData();
+        T instance = schema.decode(bytes);
 
-    @Override
-    public void deserialize(Message<?> message, Collector<T> out) throws Exception {
-        if (isSchemaEvolutionEnabled) {
-            @SuppressWarnings("unchecked")
-            T value = (T) message.getValue();
-            out.collect(value);
-        } else {
-            Schema<T> schema = this.pulsarSchema.getPulsarSchema();
-            byte[] bytes = message.getData();
-            T instance = schema.decode(bytes);
-            out.collect(instance);
-        }
+        out.collect(instance);
     }
 
     @Override
@@ -76,12 +60,7 @@ class PulsarSchemaWrapper<T> implements PulsarDeserializationSchema<T> {
         return createTypeInformation(info);
     }
 
-    @Override
-    public Schema<?> schema() {
-        if (isSchemaEvolutionEnabled) {
-            return pulsarSchema.getPulsarSchema();
-        } else {
-            return Schema.BYTES;
-        }
+    public PulsarSchema<?> pulsarSchema() {
+        return pulsarSchema;
     }
 }

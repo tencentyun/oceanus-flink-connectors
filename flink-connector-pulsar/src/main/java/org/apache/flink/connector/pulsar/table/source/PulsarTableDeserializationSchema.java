@@ -27,7 +27,6 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.util.Collector;
 
 import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.Schema;
 
 import javax.annotation.Nullable;
 
@@ -49,7 +48,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * PulsarRowDataConverter} instance.
  */
 public class PulsarTableDeserializationSchema implements PulsarDeserializationSchema<RowData> {
-
     private static final long serialVersionUID = -3298784447432136216L;
 
     private final TypeInformation<RowData> producedTypeInfo;
@@ -82,7 +80,8 @@ public class PulsarTableDeserializationSchema implements PulsarDeserializationSc
     }
 
     @Override
-    public void deserialize(Message<?> message, Collector<RowData> collector) throws IOException {
+    public void deserialize(Message<byte[]> message, Collector<RowData> collector)
+            throws IOException {
         // Get the value row data
         List<RowData> valueRowData = new ArrayList<>();
         valueDeserialization.deserialize(message.getData(), new ListCollector<>(valueRowData));
@@ -100,10 +99,5 @@ public class PulsarTableDeserializationSchema implements PulsarDeserializationSc
     @Override
     public TypeInformation<RowData> getProducedType() {
         return producedTypeInfo;
-    }
-
-    @Override
-    public Schema<?> schema() {
-        return Schema.BYTES;
     }
 }

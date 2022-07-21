@@ -497,19 +497,16 @@ public final class PulsarSourceBuilder<OUT> {
             }
         }
 
-        // Schema evolution check.
-        if (deserializationSchema instanceof PulsarSchemaWrapper
-                && !Boolean.TRUE.equals(configBuilder.get(PULSAR_READ_SCHEMA_EVOLUTION))) {
+        // Schema evolution validation.
+        if (Boolean.TRUE.equals(configBuilder.get(PULSAR_READ_SCHEMA_EVOLUTION))) {
+            checkState(
+                    deserializationSchema instanceof PulsarSchemaWrapper,
+                    "When enabling schema evolution, you must provide a Pulsar Schema in PulsarDeserializationSchema.");
+        } else if (deserializationSchema instanceof PulsarSchemaWrapper) {
             LOG.info(
                     "It seems like you want to read message using Pulsar Schema."
                             + " You can enableSchemaEvolution for using this feature."
                             + " We would use Schema.BYTES as the default schema if you don't enable this option.");
-        }
-
-        if (Boolean.TRUE.equals(configBuilder.get(PULSAR_READ_SCHEMA_EVOLUTION))) {
-            checkState(
-                    deserializationSchema instanceof PulsarSchemaWrapper,
-                    "When enabling schema evolution, you must use a Pulsar schema.");
         }
 
         if (!configBuilder.contains(PULSAR_CONSUMER_NAME)) {

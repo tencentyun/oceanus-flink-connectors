@@ -34,6 +34,7 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.junit.jupiter.api.TestTemplate;
@@ -328,10 +329,15 @@ public abstract class PulsarPartitionSplitReaderTestBase extends PulsarTestSuite
     private PulsarPartitionSplitReaderBase splitReader(SubscriptionType subscriptionType) {
         if (subscriptionType == SubscriptionType.Failover) {
             return new PulsarOrderedPartitionSplitReader(
-                    operator().client(), operator().admin(), sourceConfig(), null);
+                    operator().client(), operator().admin(), sourceConfig(), Schema.BYTES, null);
         } else {
             return new PulsarUnorderedPartitionSplitReader(
-                    operator().client(), operator().admin(), sourceConfig(), null, null);
+                    operator().client(),
+                    operator().admin(),
+                    sourceConfig(),
+                    Schema.BYTES,
+                    null,
+                    null);
         }
     }
 

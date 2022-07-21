@@ -63,6 +63,7 @@ abstract class PulsarPartitionSplitReaderBase
     protected final PulsarClient pulsarClient;
     protected final PulsarAdmin pulsarAdmin;
     protected final SourceConfiguration sourceConfiguration;
+    protected final Schema<byte[]> schema;
     @Nullable protected final CryptoKeyReader cryptoKeyReader;
 
     protected final AtomicBoolean wakeup;
@@ -74,10 +75,12 @@ abstract class PulsarPartitionSplitReaderBase
             PulsarClient pulsarClient,
             PulsarAdmin pulsarAdmin,
             SourceConfiguration sourceConfiguration,
+            Schema<byte[]> schema,
             @Nullable CryptoKeyReader cryptoKeyReader) {
         this.pulsarClient = pulsarClient;
         this.pulsarAdmin = pulsarAdmin;
         this.sourceConfiguration = sourceConfiguration;
+        this.schema = schema;
         this.cryptoKeyReader = cryptoKeyReader;
         this.wakeup = new AtomicBoolean(false);
     }
@@ -203,10 +206,8 @@ abstract class PulsarPartitionSplitReaderBase
     }
 
     protected Consumer<byte[]> createPulsarConsumer(TopicPartition partition) {
-        // Schema<?> schema = deserializationSchema.schema();
-
         ConsumerBuilder<byte[]> consumerBuilder =
-                createConsumerBuilder(pulsarClient, Schema.BYTES, sourceConfiguration);
+                createConsumerBuilder(pulsarClient, schema, sourceConfiguration);
 
         consumerBuilder.topic(partition.getFullTopicName());
 
