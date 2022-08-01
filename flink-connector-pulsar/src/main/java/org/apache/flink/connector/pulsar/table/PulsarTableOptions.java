@@ -70,11 +70,11 @@ public class PulsarTableOptions {
     public static final ConfigOption<String> SOURCE_SUBSCRIPTION_NAME =
             ConfigOptions.key("source.subscription-name")
                     .stringType()
-                    .defaultValue("flink-sql-connector-pulsar")
+                    .noDefaultValue()
                     .withDescription(
                             Description.builder()
                                     .text(
-                                            "Specify the subscription name consumer used by runtime PulsarSource.")
+                                            "Specify the subscription name consumer used by runtime PulsarSource. If not provided, a random subscription name will be generated")
                                     .text(
                                             " This argument is required when constructing the consumer.")
                                     .build());

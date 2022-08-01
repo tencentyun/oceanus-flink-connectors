@@ -86,6 +86,7 @@ import static org.apache.flink.connector.pulsar.table.PulsarTableValidationUtils
 import static org.apache.flink.connector.pulsar.table.PulsarTableValidationUtils.validateTableSinkOptions;
 import static org.apache.flink.connector.pulsar.table.PulsarTableValidationUtils.validateTableSourceOptions;
 import static org.apache.flink.table.factories.FactoryUtil.SINK_PARALLELISM;
+import static org.apache.pulsar.shade.org.apache.commons.lang3.RandomStringUtils.randomAlphabetic;
 
 /**
  * Factory for creating {@link DynamicTableSource} and {@link DynamicTableSink}.
@@ -96,6 +97,8 @@ import static org.apache.flink.table.factories.FactoryUtil.SINK_PARALLELISM;
 public class PulsarTableFactory implements DynamicTableSourceFactory, DynamicTableSinkFactory {
 
     public static final String IDENTIFIER = "pulsar";
+
+    public static final String DEFAULT_SUBSCRIPTION_NAME_PREFIX = "flink-sql-connector-pulsar-";
 
     @Override
     public DynamicTableSource createDynamicTableSource(Context context) {
@@ -131,8 +134,12 @@ public class PulsarTableFactory implements DynamicTableSourceFactory, DynamicTab
         final Properties properties = getPulsarProperties(tableOptions);
         properties.setProperty(PULSAR_ADMIN_URL.key(), tableOptions.get(ADMIN_URL));
         properties.setProperty(PULSAR_SERVICE_URL.key(), tableOptions.get(SERVICE_URL));
+        // Set random subscriptionName if not provided
         properties.setProperty(
-                PULSAR_SUBSCRIPTION_NAME.key(), tableOptions.get(SOURCE_SUBSCRIPTION_NAME));
+                PULSAR_SUBSCRIPTION_NAME.key(),
+                tableOptions
+                        .getOptional(SOURCE_SUBSCRIPTION_NAME)
+                        .orElse(DEFAULT_SUBSCRIPTION_NAME_PREFIX + randomAlphabetic(5)));
         // Retrieve physical fields (not including computed or metadata fields),
         // and projections and create a schema factory based on such information.
         final DataType physicalDataType = context.getPhysicalRowDataType();
