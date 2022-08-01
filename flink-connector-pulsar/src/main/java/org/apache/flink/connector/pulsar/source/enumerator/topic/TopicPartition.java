@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.pulsar.source.enumerator.topic;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
 
@@ -65,7 +66,7 @@ public class TopicPartition implements Serializable {
      */
     private final TopicRange range;
 
-    /** Create a top level topic without partition information. */
+    /** Create a top-level topic without partition information. */
     public TopicPartition(String topic) {
         this(topic, NON_PARTITION_ID);
     }
@@ -75,6 +76,7 @@ public class TopicPartition implements Serializable {
         this(topic, partitionId, createFullRange());
     }
 
+    @Internal
     public TopicPartition(String topic, int partitionId, TopicRange range) {
         this.topic = topicName(checkNotNull(topic));
         this.partitionId = partitionId;
@@ -89,6 +91,7 @@ public class TopicPartition implements Serializable {
         return partitionId;
     }
 
+    /** @return Is this a partition instance or a topic instance? */
     public boolean isPartition() {
         return partitionId != NON_PARTITION_ID;
     }

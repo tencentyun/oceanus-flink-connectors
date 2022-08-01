@@ -22,13 +22,14 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.operators.ProcessingTimeService;
 import org.apache.flink.connector.pulsar.sink.config.SinkConfiguration;
 import org.apache.flink.connector.pulsar.sink.writer.topic.TopicRegister;
+import org.apache.flink.connector.pulsar.sink.writer.topic.metadata.NotExistedTopicMetadataProvider;
+import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicMetadata;
 
 import org.apache.flink.shaded.guava30.com.google.common.base.Objects;
 import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
 
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,9 +47,9 @@ import static org.apache.flink.connector.pulsar.source.enumerator.topic.TopicNam
 import static org.apache.pulsar.common.partition.PartitionedTopicMetadata.NON_PARTITIONED;
 
 /**
- * We need the latest topic metadata for making sure the newly created topic partitions would be
- * used by the Pulsar sink. This routing policy would be different compared with Pulsar Client
- * built-in logic. We use Flink's ProcessingTimer as the executor.
+ * We need the latest topic metadata for making sure the Pulsar sink would use the newly created
+ * topic partitions. This routing policy would be different compared with Pulsar Client built-in
+ * logic. We use Flink's ProcessingTimer as the executor.
  */
 @Internal
 public class FixedTopicRegister<IN> implements TopicRegister<IN> {
@@ -64,6 +65,7 @@ public class FixedTopicRegister<IN> implements TopicRegister<IN> {
     private transient PulsarAdmin pulsarAdmin;
     private transient Long topicMetadataRefreshInterval;
     private transient ProcessingTimeService timeService;
+    private transient NotExistedTopicMetadataProvider metadataProvider;
 
     public FixedTopicRegister(List<String> topics) {
         List<String> partitions = new ArrayList<>(topics.size());
@@ -93,12 +95,15 @@ public class FixedTopicRegister<IN> implements TopicRegister<IN> {
         this.pulsarAdmin = createAdmin(sinkConfiguration);
         this.topicMetadataRefreshInterval = sinkConfiguration.getTopicMetadataRefreshInterval();
         this.timeService = timeService;
+        this.metadataProvider = new NotExistedTopicMetadataProvider(pulsarAdmin, sinkConfiguration);
 
         // Initialize the topic metadata. Quit if fail to connect to Pulsar.
         sneakyAdmin(this::updateTopicMetadata);
 
-        // Register time service.
-        triggerNextTopicMetadataUpdate(true);
+        // Register time service, if user enable the topic metadata update.
+        if (topicMetadataRefreshInterval > 0) {
+            triggerNextTopicMetadataUpdate(true);
+        }
     }
 
     @Override
@@ -153,12 +158,11 @@ public class FixedTopicRegister<IN> implements TopicRegister<IN> {
 
         for (Map.Entry<String, Integer> entry : topicMetadata.entrySet()) {
             String topic = entry.getKey();
-            PartitionedTopicMetadata metadata =
-                    pulsarAdmin.topics().getPartitionedTopicMetadata(topic);
+            TopicMetadata metadata = metadataProvider.query(topic);
 
             // Update topic metadata if it has been changed.
-            if (!Objects.equal(entry.getValue(), metadata.partitions)) {
-                entry.setValue(metadata.partitions);
+            if (!Objects.equal(entry.getValue(), metadata.getPartitionSize())) {
+                entry.setValue(metadata.getPartitionSize());
                 shouldUpdate = true;
             }
         }

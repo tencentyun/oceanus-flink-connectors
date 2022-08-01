@@ -22,23 +22,22 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.operators.ProcessingTimeService;
 import org.apache.flink.connector.pulsar.sink.config.SinkConfiguration;
 import org.apache.flink.connector.pulsar.sink.writer.topic.TopicExtractor;
-import org.apache.flink.connector.pulsar.sink.writer.topic.TopicExtractor.TopicMetadataProvider;
 import org.apache.flink.connector.pulsar.sink.writer.topic.TopicRegister;
+import org.apache.flink.connector.pulsar.sink.writer.topic.metadata.CachedTopicMetadataProvider;
+import org.apache.flink.connector.pulsar.sink.writer.topic.metadata.NotExistedTopicMetadataProvider;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicMetadata;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicPartition;
 import org.apache.flink.util.FlinkRuntimeException;
 
+import org.apache.flink.shaded.guava30.com.google.common.cache.Cache;
 import org.apache.flink.shaded.guava30.com.google.common.cache.CacheBuilder;
-import org.apache.flink.shaded.guava30.com.google.common.cache.CacheLoader;
-import org.apache.flink.shaded.guava30.com.google.common.cache.LoadingCache;
 
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import static java.util.Collections.singletonList;
@@ -55,8 +54,9 @@ public class DynamicTopicRegister<IN> implements TopicRegister<IN> {
 
     // Dynamic fields.
     private transient PulsarAdmin pulsarAdmin;
-    private transient TopicMetadataProvider metadataProvider;
-    private transient LoadingCache<String, List<String>> partitionsCache;
+    private transient CachedTopicMetadataProvider cachedMetadataProvider;
+    private transient NotExistedTopicMetadataProvider notExistedMetadataProvider;
+    private transient Cache<String, List<String>> partitionsCache;
 
     public DynamicTopicRegister(TopicExtractor<IN> topicExtractor) {
         this.topicExtractor = checkNotNull(topicExtractor);
@@ -64,48 +64,60 @@ public class DynamicTopicRegister<IN> implements TopicRegister<IN> {
 
     @Override
     public List<String> topics(IN in) {
-        TopicPartition partition = topicExtractor.extract(in, metadataProvider);
+        TopicPartition partition = topicExtractor.extract(in, cachedMetadataProvider);
         String topicName = partition.getFullTopicName();
 
         if (partition.isPartition()) {
             return singletonList(topicName);
         } else {
             try {
-                return partitionsCache.get(topicName);
-            } catch (ExecutionException e) {
-                throw new FlinkRuntimeException("Failed to query Pulsar topic partitions.", e);
+                List<String> topics = partitionsCache.getIfPresent(topicName);
+                if (topics == null) {
+                    topics = queryTopics(topicName);
+                    partitionsCache.put(topicName, topics);
+                }
+
+                return topics;
+            } catch (PulsarAdminException e) {
+                throw new FlinkRuntimeException(
+                        "Failed to query Pulsar topic partitions.", e.getCause());
             }
+        }
+    }
+
+    private List<String> queryTopics(String topic) throws PulsarAdminException {
+        TopicMetadata metadata = notExistedMetadataProvider.query(topic);
+        if (metadata.isPartitioned()) {
+            int partitionSize = metadata.getPartitionSize();
+            List<String> partitions = new ArrayList<>(partitionSize);
+            for (int i = 0; i < partitionSize; i++) {
+                partitions.add(topicNameWithPartition(topic, i));
+            }
+            return partitions;
+        } else {
+            return singletonList(topic);
         }
     }
 
     @Override
     public void open(SinkConfiguration sinkConfiguration, ProcessingTimeService timeService) {
-        long refreshInterval = sinkConfiguration.getTopicMetadataRefreshInterval();
-
         // Initialize Pulsar admin instance.
         this.pulsarAdmin = createAdmin(sinkConfiguration);
-        this.metadataProvider = new DefaultTopicMetadataProvider(pulsarAdmin, refreshInterval);
+        this.cachedMetadataProvider =
+                new CachedTopicMetadataProvider(pulsarAdmin, sinkConfiguration);
+        this.notExistedMetadataProvider =
+                new NotExistedTopicMetadataProvider(pulsarAdmin, sinkConfiguration);
+
+        long refreshInterval = sinkConfiguration.getTopicMetadataRefreshInterval();
+        if (refreshInterval <= 0) {
+            refreshInterval = Long.MAX_VALUE;
+        }
         this.partitionsCache =
                 CacheBuilder.newBuilder()
                         .expireAfterWrite(refreshInterval, TimeUnit.MILLISECONDS)
-                        .build(
-                                new CacheLoader<String, List<String>>() {
-                                    @Override
-                                    public List<String> load(String topic) throws Exception {
-                                        TopicMetadata metadata = metadataProvider.query(topic);
-                                        if (metadata.isPartitioned()) {
-                                            int partitionSize = metadata.getPartitionSize();
-                                            List<String> partitions =
-                                                    new ArrayList<>(partitionSize);
-                                            for (int i = 0; i < partitionSize; i++) {
-                                                partitions.add(topicNameWithPartition(topic, i));
-                                            }
-                                            return partitions;
-                                        } else {
-                                            return singletonList(topic);
-                                        }
-                                    }
-                                });
+                        .maximumSize(1000)
+                        .build();
+
         // Open the topic extractor instance.
         topicExtractor.open(sinkConfiguration);
     }
@@ -114,33 +126,6 @@ public class DynamicTopicRegister<IN> implements TopicRegister<IN> {
     public void close() throws IOException {
         if (pulsarAdmin != null) {
             pulsarAdmin.close();
-        }
-    }
-
-    private static class DefaultTopicMetadataProvider implements TopicMetadataProvider {
-
-        private final LoadingCache<String, TopicMetadata> metadataCache;
-
-        private DefaultTopicMetadataProvider(PulsarAdmin pulsarAdmin, long refreshInterval) {
-            this.metadataCache =
-                    CacheBuilder.newBuilder()
-                            .expireAfterWrite(refreshInterval, TimeUnit.MILLISECONDS)
-                            .build(
-                                    new CacheLoader<String, TopicMetadata>() {
-                                        @Override
-                                        public TopicMetadata load(String topic) throws Exception {
-                                            PartitionedTopicMetadata metadata =
-                                                    pulsarAdmin
-                                                            .topics()
-                                                            .getPartitionedTopicMetadata(topic);
-                                            return new TopicMetadata(topic, metadata.partitions);
-                                        }
-                                    });
-        }
-
-        @Override
-        public TopicMetadata query(String topic) throws ExecutionException {
-            return metadataCache.get(topic);
         }
     }
 }

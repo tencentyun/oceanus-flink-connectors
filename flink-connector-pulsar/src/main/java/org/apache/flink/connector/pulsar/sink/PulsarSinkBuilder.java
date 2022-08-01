@@ -55,6 +55,8 @@ import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULS
 import static org.apache.flink.connector.pulsar.sink.PulsarSinkOptions.PULSAR_ENCRYPTION_KEYS;
 import static org.apache.flink.connector.pulsar.sink.PulsarSinkOptions.PULSAR_PRODUCER_NAME;
 import static org.apache.flink.connector.pulsar.sink.PulsarSinkOptions.PULSAR_SEND_TIMEOUT_MS;
+import static org.apache.flink.connector.pulsar.sink.PulsarSinkOptions.PULSAR_SINK_DEFAULT_TOPIC_PARTITIONS;
+import static org.apache.flink.connector.pulsar.sink.PulsarSinkOptions.PULSAR_SINK_TOPIC_AUTO_CREATION;
 import static org.apache.flink.connector.pulsar.sink.PulsarSinkOptions.PULSAR_WRITE_DELIVERY_GUARANTEE;
 import static org.apache.flink.connector.pulsar.sink.PulsarSinkOptions.PULSAR_WRITE_SCHEMA_EVOLUTION;
 import static org.apache.flink.connector.pulsar.sink.PulsarSinkOptions.PULSAR_WRITE_TRANSACTION_TIMEOUT;
@@ -298,6 +300,26 @@ public class PulsarSinkBuilder<IN> {
      */
     public PulsarSinkBuilder<IN> setEncryptionKeys(String... keys) {
         this.encryptionKeys.addAll(Arrays.asList(keys));
+        return this;
+    }
+
+    /**
+     * Pulsar sink disable the topic creation if the sink topic doesn't exist. You should explicitly
+     * set the default partition size for enabling topic creation. Make sure you have the authority
+     * on the given Pulsar admin token.
+     *
+     * @param partitionSize The partition size used on topic creation. It should be above to zero.
+     *     <ul>
+     *       <li>0: we would create a non-partitioned topic.
+     *       <li>above 0: we would create a partitioned topic with the given size.
+     *     </ul>
+     *
+     * @return this PulsarSinkBuilder.
+     */
+    public PulsarSinkBuilder<IN> enableTopicAutoCreation(int partitionSize) {
+        checkArgument(partitionSize >= 0);
+        configBuilder.set(PULSAR_SINK_TOPIC_AUTO_CREATION, true);
+        configBuilder.set(PULSAR_SINK_DEFAULT_TOPIC_PARTITIONS, partitionSize);
         return this;
     }
 

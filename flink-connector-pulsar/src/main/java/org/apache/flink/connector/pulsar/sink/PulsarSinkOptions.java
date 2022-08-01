@@ -141,6 +141,20 @@ public final class PulsarSinkOptions {
                                             "The maximum number of pending messages in on sink parallelism.")
                                     .build());
 
+    public static final ConfigOption<Boolean> PULSAR_SINK_TOPIC_AUTO_CREATION =
+            ConfigOptions.key(SINK_CONFIG_PREFIX + "topicAutoCreation")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Enable the topic auto creation if the topic doesn't exist in Pulsar.");
+
+    public static final ConfigOption<Integer> PULSAR_SINK_DEFAULT_TOPIC_PARTITIONS =
+            ConfigOptions.key(SINK_CONFIG_PREFIX + "defaultTopicPartitions")
+                    .intType()
+                    .defaultValue(4)
+                    .withDescription(
+                            "If you enable the topic auto creation, you should also configure the default partition number here");
+
     ///////////////////////////////////////////////////////////////////////////////
     //
     // The configuration for ProducerConfigurationData part.

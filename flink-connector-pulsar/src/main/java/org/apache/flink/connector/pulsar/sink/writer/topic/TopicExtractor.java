@@ -28,7 +28,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 
 import java.io.Serializable;
 
-/** Choose topics from the message, used for dynamic generate topics in Pulsar sink. */
+/** Choose topics from the message, used for dynamically generate topics in Pulsar sink. */
 @PublicEvolving
 public interface TopicExtractor<IN> extends Serializable {
 
@@ -48,12 +48,17 @@ public interface TopicExtractor<IN> extends Serializable {
 
     /**
      * A wrapper for {@link PulsarAdmin} instance, we won't expose the Pulsar admin interface for
-     * better control the abstraction. And add cache support.
+     * better control the abstraction and cache support.
      */
     @PublicEvolving
     interface TopicMetadataProvider {
 
-        /** @throws Exception Failed to query Pulsar metadata would throw this exception. */
+        /**
+         * The query result from Pulsar would be cached, if you set positive value in {@link
+         * SinkConfiguration#getTopicMetadataRefreshInterval()}.
+         *
+         * @throws Exception Failed to query Pulsar metadata would throw this exception.
+         */
         TopicMetadata query(String topic) throws Exception;
     }
 }
