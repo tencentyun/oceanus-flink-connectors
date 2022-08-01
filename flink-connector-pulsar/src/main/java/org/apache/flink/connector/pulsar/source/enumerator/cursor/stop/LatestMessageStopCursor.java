@@ -25,6 +25,8 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 
+import java.util.Objects;
+
 import static org.apache.flink.connector.pulsar.common.utils.PulsarExceptionUtils.sneakyAdmin;
 
 /**
@@ -66,5 +68,22 @@ public class LatestMessageStopCursor implements StopCursor {
         } else {
             return id.compareTo(messageId) >= 0;
         }
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        LatestMessageStopCursor that = (LatestMessageStopCursor) o;
+        return exclusive == that.exclusive && Objects.equals(messageId, that.messageId);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(messageId, exclusive);
     }
 }

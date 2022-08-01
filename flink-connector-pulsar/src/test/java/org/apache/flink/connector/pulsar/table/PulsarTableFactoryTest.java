@@ -26,6 +26,7 @@ import org.apache.flink.connector.pulsar.sink.PulsarSink;
 import org.apache.flink.connector.pulsar.sink.writer.router.TopicRoutingMode;
 import org.apache.flink.connector.pulsar.source.PulsarSource;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.StartCursor;
+import org.apache.flink.connector.pulsar.source.enumerator.cursor.StopCursor;
 import org.apache.flink.connector.pulsar.table.sink.PulsarTableSerializationSchemaFactory;
 import org.apache.flink.connector.pulsar.table.sink.PulsarTableSink;
 import org.apache.flink.connector.pulsar.table.source.PulsarTableDeserializationSchemaFactory;
@@ -168,6 +169,7 @@ public class PulsarTableFactoryTest {
                         Lists.list(TEST_TOPIC),
                         EXPECTED_PULSAR_SOURCE_PROPERTIES,
                         StartCursor.earliest(),
+                        StopCursor.never(),
                         SubscriptionType.Exclusive);
         assertThat(actualPulsarSource).isEqualTo(expectedPulsarSource);
 
@@ -213,6 +215,7 @@ public class PulsarTableFactoryTest {
                         Lists.list(TEST_TOPIC),
                         EXPECTED_PULSAR_SOURCE_PROPERTIES,
                         StartCursor.earliest(),
+                        StopCursor.never(),
                         SubscriptionType.Exclusive);
 
         assertThat(actualPulsarSource).isEqualTo(expectedPulsarSource);
@@ -266,6 +269,7 @@ public class PulsarTableFactoryTest {
                         Lists.list(TEST_TOPIC),
                         EXPECTED_PULSAR_SOURCE_PROPERTIES,
                         StartCursor.earliest(),
+                        StopCursor.never(),
                         SubscriptionType.Exclusive);
 
         deserializationSchemaFactory.setProducedDataType(

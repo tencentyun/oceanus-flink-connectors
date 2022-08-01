@@ -29,6 +29,7 @@ import org.apache.flink.connector.pulsar.sink.writer.router.TopicRouter;
 import org.apache.flink.connector.pulsar.sink.writer.router.TopicRoutingMode;
 import org.apache.flink.connector.pulsar.source.PulsarSourceOptions;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.StartCursor;
+import org.apache.flink.connector.pulsar.source.enumerator.cursor.StopCursor;
 import org.apache.flink.connector.pulsar.table.sink.PulsarTableSerializationSchemaFactory;
 import org.apache.flink.connector.pulsar.table.sink.PulsarTableSink;
 import org.apache.flink.connector.pulsar.table.source.PulsarTableDeserializationSchemaFactory;
@@ -62,6 +63,7 @@ import static org.apache.flink.connector.pulsar.table.PulsarTableOptionUtils.get
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptionUtils.getMessageDelayMillis;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptionUtils.getPulsarProperties;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptionUtils.getStartCursor;
+import static org.apache.flink.connector.pulsar.table.PulsarTableOptionUtils.getStopCursor;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptionUtils.getSubscriptionType;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptionUtils.getTopicListFromOptions;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptionUtils.getTopicRouter;
@@ -78,6 +80,9 @@ import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.SINK_ME
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.SINK_TOPIC_ROUTING_MODE;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.SOURCE_START_FROM_MESSAGE_ID;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.SOURCE_START_FROM_PUBLISH_TIME;
+import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.SOURCE_STOP_AFTER_MESSAGE_ID;
+import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.SOURCE_STOP_AT_MESSAGE_ID;
+import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.SOURCE_STOP_AT_PUBLISH_TIME;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.SOURCE_SUBSCRIPTION_NAME;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.SOURCE_SUBSCRIPTION_TYPE;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.TOPICS;
@@ -128,6 +133,7 @@ public class PulsarTableFactory implements DynamicTableSourceFactory, DynamicTab
         // Retrieve configs
         final List<String> topics = getTopicListFromOptions(tableOptions);
         final StartCursor startCursor = getStartCursor(tableOptions);
+        final StopCursor stopCursor = getStopCursor(tableOptions);
         final SubscriptionType subscriptionType = getSubscriptionType(tableOptions);
 
         // Forward source configs
@@ -165,6 +171,7 @@ public class PulsarTableFactory implements DynamicTableSourceFactory, DynamicTab
                 topics,
                 properties,
                 startCursor,
+                stopCursor,
                 subscriptionType);
     }
 
@@ -253,6 +260,9 @@ public class PulsarTableFactory implements DynamicTableSourceFactory, DynamicTab
                         SOURCE_SUBSCRIPTION_TYPE,
                         SOURCE_START_FROM_MESSAGE_ID,
                         SOURCE_START_FROM_PUBLISH_TIME,
+                        SOURCE_STOP_AT_MESSAGE_ID,
+                        SOURCE_STOP_AFTER_MESSAGE_ID,
+                        SOURCE_STOP_AT_PUBLISH_TIME,
                         SINK_CUSTOM_TOPIC_ROUTER,
                         SINK_TOPIC_ROUTING_MODE,
                         SINK_MESSAGE_DELAY_INTERVAL,
@@ -278,6 +288,9 @@ public class PulsarTableFactory implements DynamicTableSourceFactory, DynamicTab
                         SOURCE_SUBSCRIPTION_NAME,
                         SOURCE_START_FROM_MESSAGE_ID,
                         SOURCE_START_FROM_PUBLISH_TIME,
+                        SOURCE_STOP_AT_MESSAGE_ID,
+                        SOURCE_STOP_AFTER_MESSAGE_ID,
+                        SOURCE_STOP_AT_PUBLISH_TIME,
                         SINK_CUSTOM_TOPIC_ROUTER,
                         SINK_TOPIC_ROUTING_MODE,
                         SINK_MESSAGE_DELAY_INTERVAL)

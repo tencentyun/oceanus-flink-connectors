@@ -25,6 +25,7 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.connector.pulsar.sink.writer.router.TopicRouter;
 import org.apache.flink.connector.pulsar.sink.writer.router.TopicRoutingMode;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.StartCursor;
+import org.apache.flink.connector.pulsar.source.enumerator.cursor.StopCursor;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.format.EncodingFormat;
@@ -38,7 +39,6 @@ import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.InstantiationUtil;
-import org.apache.flink.util.Preconditions;
 
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.MessageIdImpl;
@@ -59,9 +59,13 @@ import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.SINK_ME
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.SINK_TOPIC_ROUTING_MODE;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.SOURCE_START_FROM_MESSAGE_ID;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.SOURCE_START_FROM_PUBLISH_TIME;
+import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.SOURCE_STOP_AFTER_MESSAGE_ID;
+import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.SOURCE_STOP_AT_MESSAGE_ID;
+import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.SOURCE_STOP_AT_PUBLISH_TIME;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.SOURCE_SUBSCRIPTION_TYPE;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.TOPICS;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.VALUE_FORMAT;
+import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * A util class for getting fields from config options, getting formats and other useful
@@ -128,8 +132,7 @@ public class PulsarTableOptionUtils {
     public static int[] createKeyFormatProjection(
             ReadableConfig options, DataType physicalDataType) {
         final LogicalType physicalType = physicalDataType.getLogicalType();
-        Preconditions.checkArgument(
-                physicalType.is(LogicalTypeRoot.ROW), "Row data type expected.");
+        checkArgument(physicalType.is(LogicalTypeRoot.ROW), "Row data type expected.");
         final Optional<String> optionalKeyFormat = options.getOptional(KEY_FORMAT);
         final Optional<List<String>> optionalKeyFields = options.getOptional(KEY_FIELDS);
 
@@ -161,8 +164,7 @@ public class PulsarTableOptionUtils {
     public static int[] createValueFormatProjection(
             ReadableConfig options, DataType physicalDataType) {
         final LogicalType physicalType = physicalDataType.getLogicalType();
-        Preconditions.checkArgument(
-                physicalType.is(LogicalTypeRoot.ROW), "Row data type expected.");
+        checkArgument(physicalType.is(LogicalTypeRoot.ROW), "Row data type expected.");
 
         final int physicalFieldCount = LogicalTypeChecks.getFieldCount(physicalType);
         final IntStream physicalFields = IntStream.range(0, physicalFieldCount);
@@ -208,6 +210,18 @@ public class PulsarTableOptionUtils {
         }
     }
 
+    public static StopCursor getStopCursor(ReadableConfig tableOptions) {
+        if (tableOptions.getOptional(SOURCE_STOP_AT_MESSAGE_ID).isPresent()) {
+            return parseAtMessageIdStopCursor(tableOptions.get(SOURCE_STOP_AT_MESSAGE_ID));
+        } else if (tableOptions.getOptional(SOURCE_STOP_AFTER_MESSAGE_ID).isPresent()) {
+            return parseAfterMessageIdStopCursor(tableOptions.get(SOURCE_STOP_AFTER_MESSAGE_ID));
+        } else if (tableOptions.getOptional(SOURCE_STOP_AT_PUBLISH_TIME).isPresent()) {
+            return parseAtPublishTimeStopCursor(tableOptions.get(SOURCE_STOP_AT_PUBLISH_TIME));
+        } else {
+            return StopCursor.never();
+        }
+    }
+
     public static SubscriptionType getSubscriptionType(ReadableConfig tableOptions) {
         return tableOptions.get(SOURCE_SUBSCRIPTION_TYPE);
     }
@@ -218,31 +232,47 @@ public class PulsarTableOptionUtils {
         } else if (Objects.equals(config, "latest")) {
             return StartCursor.latest();
         } else {
-            return parseMessageIdString(config);
-        }
-    }
-
-    protected static StartCursor parseMessageIdString(String config) {
-        String[] tokens = config.split(":", 3);
-        if (tokens.length != 3) {
-            throw new IllegalArgumentException(
-                    "MessageId format must be ledgerId:entryId:partitionId.");
-        }
-        try {
-            long ledgerId = Long.parseLong(tokens[0]);
-            long entryId = Long.parseLong(tokens[1]);
-            int partitionId = Integer.parseInt(tokens[2]);
-            MessageIdImpl messageId = new MessageIdImpl(ledgerId, entryId, partitionId);
-            return StartCursor.fromMessageId(messageId);
-        } catch (NumberFormatException e) {
-            throw new IllegalArgumentException(
-                    "MessageId format must be ledgerId:entryId:partitionId. "
-                            + "Each id should be able to parsed to long type.");
+            return StartCursor.fromMessageId(parseMessageIdString(config));
         }
     }
 
     protected static StartCursor parsePublishTimeStartCursor(Long config) {
         return StartCursor.fromPublishTime(config);
+    }
+
+    protected static StopCursor parseAtMessageIdStopCursor(String config) {
+        if (Objects.equals(config, "never")) {
+            return StopCursor.never();
+        } else if (Objects.equals(config, "latest")) {
+            return StopCursor.latest();
+        } else {
+            return StopCursor.atMessageId(parseMessageIdString(config));
+        }
+    }
+
+    protected static StopCursor parseAfterMessageIdStopCursor(String config) {
+        return StopCursor.afterMessageId(parseMessageIdString(config));
+    }
+
+    protected static StopCursor parseAtPublishTimeStopCursor(Long config) {
+        return StopCursor.atPublishTime(config);
+    }
+
+    protected static MessageIdImpl parseMessageIdString(String config) {
+        String[] tokens = config.split(":", 3);
+        checkArgument(tokens.length == 3, "MessageId format must be ledgerId:entryId:partitionId.");
+
+        try {
+            long ledgerId = Long.parseLong(tokens[0]);
+            long entryId = Long.parseLong(tokens[1]);
+            int partitionId = Integer.parseInt(tokens[2]);
+            MessageIdImpl messageId = new MessageIdImpl(ledgerId, entryId, partitionId);
+            return messageId;
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException(
+                    "MessageId format must be ledgerId:entryId:partitionId. "
+                            + "Each id should be able to parsed to long type.");
+        }
     }
 
     // --------------------------------------------------------------------------------------------

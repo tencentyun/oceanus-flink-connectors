@@ -22,8 +22,10 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.pulsar.sink.writer.router.TopicRouter;
 import org.apache.flink.connector.pulsar.sink.writer.router.TopicRoutingMode;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.StartCursor;
+import org.apache.flink.connector.pulsar.source.enumerator.cursor.StopCursor;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.start.MessageIdStartCursor;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.start.PublishTimestampStartCursor;
+import org.apache.flink.connector.pulsar.source.enumerator.cursor.stop.PublishTimestampStopCursor;
 import org.apache.flink.connector.pulsar.table.testutils.MockTopicRouter;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
@@ -47,17 +49,22 @@ import static org.apache.flink.connector.pulsar.table.PulsarTableOptionUtils.cre
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptionUtils.getMessageDelayMillis;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptionUtils.getPulsarProperties;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptionUtils.getStartCursor;
+import static org.apache.flink.connector.pulsar.table.PulsarTableOptionUtils.getStopCursor;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptionUtils.getSubscriptionType;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptionUtils.getTopicListFromOptions;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptionUtils.getTopicRouter;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptionUtils.getTopicRoutingMode;
+import static org.apache.flink.connector.pulsar.table.PulsarTableOptionUtils.parseAfterMessageIdStopCursor;
+import static org.apache.flink.connector.pulsar.table.PulsarTableOptionUtils.parseAtMessageIdStopCursor;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptionUtils.parseMessageIdStartCursor;
+import static org.apache.flink.connector.pulsar.table.PulsarTableOptionUtils.parseMessageIdString;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.KEY_FIELDS;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.SINK_CUSTOM_TOPIC_ROUTER;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.SINK_MESSAGE_DELAY_INTERVAL;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.SINK_TOPIC_ROUTING_MODE;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.SOURCE_START_FROM_MESSAGE_ID;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.SOURCE_START_FROM_PUBLISH_TIME;
+import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.SOURCE_STOP_AT_PUBLISH_TIME;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.SOURCE_SUBSCRIPTION_TYPE;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.TOPICS;
 import static org.apache.flink.table.api.DataTypes.FIELD;
@@ -66,6 +73,7 @@ import static org.apache.flink.table.api.DataTypes.ROW;
 import static org.apache.flink.table.api.DataTypes.STRING;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+import static org.assertj.core.api.Assertions.assertThatNoException;
 
 /**
  * Unit test for {@link PulsarTableOptionUtils}. Tests each method and different inputs. Some tests
@@ -201,7 +209,7 @@ public class PulsarTableOptionUtilsTest {
     }
 
     @Test
-    void canParseMessageIdEarliestOrLatest() {
+    void canParseMessageIdEarliestOrLatestStartCursor() {
         String earliest = "earliest";
         StartCursor startCursor = parseMessageIdStartCursor(earliest);
         assertThat(startCursor).isEqualTo(StartCursor.earliest());
@@ -216,59 +224,6 @@ public class PulsarTableOptionUtilsTest {
     }
 
     @Test
-    void canParseMessageIdUsingMessageIdImpl() {
-        final String invalidFormatMessage =
-                "MessageId format must be ledgerId:entryId:partitionId.";
-        final String invalidNumberMessage =
-                "MessageId format must be ledgerId:entryId:partitionId. Each id should be able to parsed to long type.";
-        String precise = "0:0:100";
-        StartCursor startCursor = parseMessageIdStartCursor(precise);
-
-        String empty = "";
-        assertThatExceptionOfType(IllegalArgumentException.class)
-                .isThrownBy(() -> parseMessageIdStartCursor(empty))
-                .withMessage(invalidFormatMessage);
-
-        String noSemicolon = "0";
-        assertThatExceptionOfType(IllegalArgumentException.class)
-                .isThrownBy(() -> parseMessageIdStartCursor(noSemicolon))
-                .withMessage(invalidFormatMessage);
-
-        String oneSemiColon = "0:";
-        assertThatExceptionOfType(IllegalArgumentException.class)
-                .isThrownBy(() -> parseMessageIdStartCursor(oneSemiColon))
-                .withMessage(invalidFormatMessage);
-
-        String oneSemiColonComplete = "0:0";
-        assertThatExceptionOfType(IllegalArgumentException.class)
-                .isThrownBy(() -> parseMessageIdStartCursor(oneSemiColonComplete))
-                .withMessage(invalidFormatMessage);
-
-        String twoSemiColon = "0:0:";
-        assertThatExceptionOfType(IllegalArgumentException.class)
-                .isThrownBy(() -> parseMessageIdStartCursor(twoSemiColon))
-                .withMessage(invalidNumberMessage);
-
-        String twoSemiColonComplete = "0:0:0";
-        startCursor = parseMessageIdStartCursor(twoSemiColonComplete);
-
-        String threeSemicolon = "0:0:0:";
-        assertThatExceptionOfType(IllegalArgumentException.class)
-                .isThrownBy(() -> parseMessageIdStartCursor(threeSemicolon))
-                .withMessage(invalidNumberMessage);
-
-        String threeSemicolonComplete = "0:0:0:0";
-        assertThatExceptionOfType(IllegalArgumentException.class)
-                .isThrownBy(() -> parseMessageIdStartCursor(threeSemicolonComplete))
-                .withMessage(invalidNumberMessage);
-
-        String invalidNumber = "0:0:adf";
-        assertThatExceptionOfType(IllegalArgumentException.class)
-                .isThrownBy(() -> parseMessageIdStartCursor(invalidNumber))
-                .withMessage(invalidNumberMessage);
-    }
-
-    @Test
     void publishTimeStartCursor() {
         final Map<String, String> options = createDefaultOptions();
         options.put(SOURCE_START_FROM_PUBLISH_TIME.key(), "12345");
@@ -279,6 +234,91 @@ public class PulsarTableOptionUtilsTest {
         assertThatExceptionOfType(IllegalArgumentException.class)
                 .isThrownBy(() -> getStartCursor(Configuration.fromMap(options)))
                 .withMessage("Could not parse value '12345L' for key 'source.start.publish-time'.");
+    }
+
+    @Test
+    void canParseMessageIdNeverOrLatestStopCursor() {
+        String never = "never";
+        StopCursor stopCursor = parseAtMessageIdStopCursor(never);
+        assertThat(stopCursor).isEqualTo(StopCursor.never());
+
+        String latest = "latest";
+        stopCursor = parseAtMessageIdStopCursor(latest);
+        assertThat(stopCursor).isEqualTo(StopCursor.latest());
+
+        String precise = "0:0:100";
+        stopCursor = parseAtMessageIdStopCursor(precise);
+        assertThat(stopCursor).isEqualTo(StopCursor.atMessageId(new MessageIdImpl(0, 0, 100)));
+
+        stopCursor = parseAfterMessageIdStopCursor(precise);
+        assertThat(stopCursor).isEqualTo(StopCursor.afterMessageId(new MessageIdImpl(0, 0, 100)));
+    }
+
+    @Test
+    void publishTimeStopCursor() {
+        final Map<String, String> options = createDefaultOptions();
+        options.put(SOURCE_STOP_AT_PUBLISH_TIME.key(), "12345");
+        StopCursor stopCursor = getStopCursor(Configuration.fromMap(options));
+        assertThat(stopCursor).isInstanceOf(PublishTimestampStopCursor.class);
+
+        options.put(SOURCE_STOP_AT_PUBLISH_TIME.key(), "12345L");
+        assertThatExceptionOfType(IllegalArgumentException.class)
+                .isThrownBy(() -> getStopCursor(Configuration.fromMap(options)))
+                .withMessage(
+                        "Could not parse value '12345L' for key 'source.stop.at-publish-time'.");
+    }
+
+    @Test
+    void canParseMessageIdUsingMessageIdImpl() {
+        final String invalidFormatMessage =
+                "MessageId format must be ledgerId:entryId:partitionId.";
+        final String invalidNumberMessage =
+                "MessageId format must be ledgerId:entryId:partitionId. Each id should be able to parsed to long type.";
+        String precise = "0:0:100";
+        assertThatNoException().isThrownBy(() -> parseMessageIdString(precise));
+
+        String empty = "";
+        assertThatExceptionOfType(IllegalArgumentException.class)
+                .isThrownBy(() -> parseMessageIdString(empty))
+                .withMessage(invalidFormatMessage);
+
+        String noSemicolon = "0";
+        assertThatExceptionOfType(IllegalArgumentException.class)
+                .isThrownBy(() -> parseMessageIdString(noSemicolon))
+                .withMessage(invalidFormatMessage);
+
+        String oneSemiColon = "0:";
+        assertThatExceptionOfType(IllegalArgumentException.class)
+                .isThrownBy(() -> parseMessageIdString(oneSemiColon))
+                .withMessage(invalidFormatMessage);
+
+        String oneSemiColonComplete = "0:0";
+        assertThatExceptionOfType(IllegalArgumentException.class)
+                .isThrownBy(() -> parseMessageIdString(oneSemiColonComplete))
+                .withMessage(invalidFormatMessage);
+
+        String twoSemiColon = "0:0:";
+        assertThatExceptionOfType(IllegalArgumentException.class)
+                .isThrownBy(() -> parseMessageIdString(twoSemiColon))
+                .withMessage(invalidNumberMessage);
+
+        String twoSemiColonComplete = "0:0:0";
+        assertThatNoException().isThrownBy(() -> parseMessageIdString(twoSemiColonComplete));
+
+        String threeSemicolon = "0:0:0:";
+        assertThatExceptionOfType(IllegalArgumentException.class)
+                .isThrownBy(() -> parseMessageIdString(threeSemicolon))
+                .withMessage(invalidNumberMessage);
+
+        String threeSemicolonComplete = "0:0:0:0";
+        assertThatExceptionOfType(IllegalArgumentException.class)
+                .isThrownBy(() -> parseMessageIdString(threeSemicolonComplete))
+                .withMessage(invalidNumberMessage);
+
+        String invalidNumber = "0:0:adf";
+        assertThatExceptionOfType(IllegalArgumentException.class)
+                .isThrownBy(() -> parseMessageIdString(invalidNumber))
+                .withMessage(invalidNumberMessage);
     }
 
     // --------------------------------------------------------------------------------------------

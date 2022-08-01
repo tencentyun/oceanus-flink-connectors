@@ -113,6 +113,36 @@ public final class PulsarTableOptions {
                                     .text(
                                             "(Optional) the publish timestamp that is used to specify a starting point for the [Pulsar DataStream source connector](https://nightlies.apache.org/flink/flink-docs-master/docs/connectors/datastream/pulsar/#pulsar-source) to consume data.")
                                     .build());
+
+    public static final ConfigOption<String> SOURCE_STOP_AT_MESSAGE_ID =
+            ConfigOptions.key("source.stop.at-message-id")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Optional message id used to specify a stop cursor for the unbounded sql "
+                                    + "source. Use \"never\", \"latest\" or pass in a message id "
+                                    + "representation in \"ledgerId:entryId:partitionId\", "
+                                    + "such as \"12:2:-1\"");
+
+    public static final ConfigOption<String> SOURCE_STOP_AFTER_MESSAGE_ID =
+            ConfigOptions.key("source.stop.after-message-id")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Optional message id used to specify a stop position but include the "
+                                    + "given message in the consuming result for the unbounded sql "
+                                    + "source. Pass in a message id "
+                                    + "representation in \"ledgerId:entryId:partitionId\", "
+                                    + "such as \"12:2:-1\". ");
+
+    public static final ConfigOption<Long> SOURCE_STOP_AT_PUBLISH_TIME =
+            ConfigOptions.key("source.stop.at-publish-time")
+                    .longType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Optional publish timestamp used to specify a stop cursor"
+                                    + " for the unbounded sql source.");
+
     // --------------------------------------------------------------------------------------------
     // Table Sink Options
     // --------------------------------------------------------------------------------------------

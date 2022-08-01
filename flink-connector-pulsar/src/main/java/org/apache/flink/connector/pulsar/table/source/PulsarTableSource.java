@@ -21,6 +21,7 @@ package org.apache.flink.connector.pulsar.table.source;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.connector.pulsar.source.PulsarSource;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.StartCursor;
+import org.apache.flink.connector.pulsar.source.enumerator.cursor.StopCursor;
 import org.apache.flink.connector.pulsar.source.reader.deserializer.PulsarDeserializationSchema;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.format.DecodingFormat;
@@ -76,6 +77,8 @@ public class PulsarTableSource implements ScanTableSource, SupportsReadingMetada
 
     private final StartCursor startCursor;
 
+    private final StopCursor stopCursor;
+
     private final SubscriptionType subscriptionType;
 
     public PulsarTableSource(
@@ -84,6 +87,7 @@ public class PulsarTableSource implements ScanTableSource, SupportsReadingMetada
             List<String> topics,
             Properties properties,
             StartCursor startCursor,
+            StopCursor stopCursor,
             SubscriptionType subscriptionType) {
         // Format attributes
         this.deserializationSchemaFactory = checkNotNull(deserializationSchemaFactory);
@@ -92,6 +96,7 @@ public class PulsarTableSource implements ScanTableSource, SupportsReadingMetada
         this.topics = topics;
         this.properties = checkNotNull(properties);
         this.startCursor = checkNotNull(startCursor);
+        this.stopCursor = checkNotNull(stopCursor);
         this.subscriptionType = checkNotNull(subscriptionType);
     }
 
@@ -108,6 +113,7 @@ public class PulsarTableSource implements ScanTableSource, SupportsReadingMetada
                 PulsarSource.builder()
                         .setTopics(topics)
                         .setStartCursor(startCursor)
+                        .setUnboundedStopCursor(stopCursor)
                         .setDeserializationSchema(deserializationSchema)
                         .setSubscriptionType(subscriptionType)
                         .setProperties(properties)
@@ -177,6 +183,7 @@ public class PulsarTableSource implements ScanTableSource, SupportsReadingMetada
                         topics,
                         properties,
                         startCursor,
+                        stopCursor,
                         subscriptionType);
         return copy;
     }
@@ -197,6 +204,7 @@ public class PulsarTableSource implements ScanTableSource, SupportsReadingMetada
                 && Objects.equals(topics, that.topics)
                 && Objects.equals(properties, that.properties)
                 && Objects.equals(startCursor, that.startCursor)
+                && Objects.equals(stopCursor, that.stopCursor)
                 && subscriptionType == that.subscriptionType;
     }
 
@@ -208,6 +216,7 @@ public class PulsarTableSource implements ScanTableSource, SupportsReadingMetada
                 topics,
                 properties,
                 startCursor,
+                stopCursor,
                 subscriptionType);
     }
 }

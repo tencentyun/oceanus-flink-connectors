@@ -37,6 +37,8 @@ import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.SINK_ME
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.SINK_TOPIC_ROUTING_MODE;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.SOURCE_START_FROM_MESSAGE_ID;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.SOURCE_START_FROM_PUBLISH_TIME;
+import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.SOURCE_STOP_AT_MESSAGE_ID;
+import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.SOURCE_STOP_AT_PUBLISH_TIME;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.SOURCE_SUBSCRIPTION_TYPE;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.TOPICS;
 import static org.apache.flink.table.factories.TestDynamicTableFactory.VALUE_FORMAT;
@@ -247,6 +249,54 @@ public class PulsarTableOptionsTest extends PulsarTableTestBase {
         Map<String, String> testConfigs = testConfigWithTopicAndFormat(topicName);
 
         testConfigs.put(SOURCE_START_FROM_PUBLISH_TIME.key(), "233010230");
+
+        runSql(topicName, createTestConfig(testConfigs));
+        runSinkAndExpectSucceed(topicName);
+        runSourceAndExpectSucceed(topicName);
+    }
+
+    @Test
+    void messageIdStopCursorNever() {
+        final String topicName = randomTopicName();
+        Map<String, String> testConfigs = testConfigWithTopicAndFormat(topicName);
+
+        testConfigs.put(SOURCE_STOP_AT_MESSAGE_ID.key(), "never");
+
+        runSql(topicName, createTestConfig(testConfigs));
+        runSinkAndExpectSucceed(topicName);
+        runSourceAndExpectSucceed(topicName);
+    }
+
+    @Test
+    void messageIdStopCursorLatest() {
+        final String topicName = randomTopicName();
+        Map<String, String> testConfigs = testConfigWithTopicAndFormat(topicName);
+
+        testConfigs.put(SOURCE_STOP_AT_MESSAGE_ID.key(), "latest");
+
+        runSql(topicName, createTestConfig(testConfigs));
+        runSinkAndExpectSucceed(topicName);
+        runSourceAndExpectSucceed(topicName);
+    }
+
+    @Test
+    void messageIdStopCursorExact() {
+        final String topicName = randomTopicName();
+        Map<String, String> testConfigs = testConfigWithTopicAndFormat(topicName);
+
+        testConfigs.put(SOURCE_STOP_AT_MESSAGE_ID.key(), "0:0:-1");
+
+        runSql(topicName, createTestConfig(testConfigs));
+        runSinkAndExpectSucceed(topicName);
+        runSourceAndExpectSucceed(topicName);
+    }
+
+    @Test
+    void timestampStopCursor() {
+        final String topicName = randomTopicName();
+        Map<String, String> testConfigs = testConfigWithTopicAndFormat(topicName);
+
+        testConfigs.put(SOURCE_STOP_AT_PUBLISH_TIME.key(), "233010230");
 
         runSql(topicName, createTestConfig(testConfigs));
         runSinkAndExpectSucceed(topicName);

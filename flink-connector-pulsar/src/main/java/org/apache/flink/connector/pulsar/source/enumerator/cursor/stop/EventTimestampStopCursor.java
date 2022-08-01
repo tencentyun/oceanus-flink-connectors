@@ -22,6 +22,8 @@ import org.apache.flink.connector.pulsar.source.enumerator.cursor.StopCursor;
 
 import org.apache.pulsar.client.api.Message;
 
+import java.util.Objects;
+
 /** Stop consuming message at the given event time. */
 public class EventTimestampStopCursor implements StopCursor {
     private static final long serialVersionUID = 2391576769339369027L;
@@ -35,5 +37,22 @@ public class EventTimestampStopCursor implements StopCursor {
     @Override
     public boolean shouldStop(Message<?> message) {
         return message.getEventTime() >= timestamp;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        EventTimestampStopCursor that = (EventTimestampStopCursor) o;
+        return timestamp == that.timestamp;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(timestamp);
     }
 }

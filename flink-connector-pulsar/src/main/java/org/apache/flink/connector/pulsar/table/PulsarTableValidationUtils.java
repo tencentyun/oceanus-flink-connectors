@@ -19,6 +19,7 @@
 package org.apache.flink.connector.pulsar.table;
 
 import org.apache.flink.api.common.serialization.DeserializationSchema;
+import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.connector.pulsar.sink.writer.router.TopicRoutingMode;
 import org.apache.flink.table.api.ValidationException;
@@ -28,10 +29,13 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.types.RowKind;
 
+import org.apache.flink.shaded.guava30.com.google.common.collect.Sets;
+
 import org.apache.pulsar.client.api.SubscriptionType;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptionUtils.getValueDecodingFormat;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.KEY_FIELDS;
@@ -40,6 +44,9 @@ import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.SINK_CU
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.SINK_TOPIC_ROUTING_MODE;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.SOURCE_START_FROM_MESSAGE_ID;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.SOURCE_START_FROM_PUBLISH_TIME;
+import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.SOURCE_STOP_AFTER_MESSAGE_ID;
+import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.SOURCE_STOP_AT_MESSAGE_ID;
+import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.SOURCE_STOP_AT_PUBLISH_TIME;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.SOURCE_SUBSCRIPTION_TYPE;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.TOPICS;
 import static org.apache.pulsar.common.naming.TopicName.isValid;
@@ -68,6 +75,7 @@ public class PulsarTableValidationUtils {
     public static void validateTableSourceOptions(ReadableConfig tableOptions) {
         validateTopicsConfigs(tableOptions);
         validateStartCursorConfigs(tableOptions);
+        validateStopCursorConfigs(tableOptions);
         validateSubscriptionTypeConfigs(tableOptions);
         validateKeyFormatConfigs(tableOptions);
     }
@@ -98,6 +106,29 @@ public class PulsarTableValidationUtils {
                     String.format(
                             "Only one of %s and %s can be specified. Detected both of them",
                             SOURCE_START_FROM_MESSAGE_ID, SOURCE_START_FROM_PUBLISH_TIME));
+        }
+    }
+
+    protected static void validateStopCursorConfigs(ReadableConfig tableOptions) {
+        Set<ConfigOption<?>> conflictConfigOptions =
+                Sets.newHashSet(
+                        SOURCE_STOP_AT_MESSAGE_ID,
+                        SOURCE_STOP_AFTER_MESSAGE_ID,
+                        SOURCE_STOP_AT_PUBLISH_TIME);
+
+        long configsNums =
+                conflictConfigOptions.stream()
+                        .map(tableOptions::getOptional)
+                        .filter(Optional::isPresent)
+                        .count();
+
+        if (configsNums > 1) {
+            throw new ValidationException(
+                    String.format(
+                            "Only one of %s, %s and %s can be specified. Detected more than 1 of them",
+                            SOURCE_STOP_AT_MESSAGE_ID,
+                            SOURCE_STOP_AFTER_MESSAGE_ID,
+                            SOURCE_STOP_AT_PUBLISH_TIME));
         }
     }
 
