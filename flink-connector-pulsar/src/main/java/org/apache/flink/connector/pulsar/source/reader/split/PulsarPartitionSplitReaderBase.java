@@ -49,7 +49,6 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.apache.flink.connector.pulsar.common.utils.PulsarExceptionUtils.sneakyClient;
@@ -101,15 +100,14 @@ abstract class PulsarPartitionSplitReaderBase
         String splitId = registeredSplit.splitId();
         Deadline deadline = Deadline.fromNow(sourceConfiguration.getMaxFetchTime());
 
-        // Consume message from pulsar until it was woken up by flink reader.
+        // Consume messages from pulsar until it was waked up by flink reader.
         for (int messageNum = 0;
                 messageNum < sourceConfiguration.getMaxFetchRecords()
                         && deadline.hasTimeLeft()
                         && isNotWakeup();
                 messageNum++) {
             try {
-                Duration timeout = deadline.timeLeftIfAny();
-                Message<byte[]> message = pollMessage(timeout);
+                Message<byte[]> message = pollMessage(sourceConfiguration.getDefaultFetchTime());
                 if (message == null) {
                     break;
                 }
@@ -125,8 +123,6 @@ abstract class PulsarPartitionSplitReaderBase
                 }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                break;
-            } catch (TimeoutException e) {
                 break;
             } catch (ExecutionException e) {
                 LOG.error("Error in polling message from pulsar consumer.", e);
@@ -205,6 +201,7 @@ abstract class PulsarPartitionSplitReaderBase
         return createPulsarConsumer(split.getPartition());
     }
 
+    /** Create a specified {@link Consumer} by the given topic partition. */
     protected Consumer<byte[]> createPulsarConsumer(TopicPartition partition) {
         ConsumerBuilder<byte[]> consumerBuilder =
                 createConsumerBuilder(pulsarClient, schema, sourceConfiguration);
