@@ -18,7 +18,9 @@
 
 package org.apache.flink.connector.pulsar.table;
 
+import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.connector.pulsar.table.testutils.TestingUser;
+import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.table.api.DataTypes;
@@ -29,6 +31,7 @@ import org.apache.flink.types.Row;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Schema;
 import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -40,6 +43,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Stream;
 
 import static org.apache.commons.lang3.RandomStringUtils.randomAlphabetic;
@@ -49,6 +54,8 @@ import static org.apache.flink.connector.pulsar.table.testutils.TestingUser.crea
 import static org.apache.flink.util.CollectionUtil.entry;
 import static org.apache.flink.util.CollectionUtil.map;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+import static org.assertj.core.api.Assertions.assertThatNoException;
 
 /**
  * IT cases for the Pulsar table source and sink. It aims to verify runtime behaviour and certain
@@ -439,6 +446,88 @@ public class PulsarTableITCase extends PulsarTableTestBase {
                 String.format("INSERT INTO %s SELECT * FROM %s", sinkTableName, sourceTableName));
         Message<TestingUser> sinkResult = pulsar.operator().receiveMessage(sinkTopic, schema);
         assertThat(sinkResult.getValue()).isEqualTo(value);
+    }
+
+    @Test
+    void sendMessageToTopicAndReadUntilBoundedStopCursor() throws Exception {
+        final String sourceTopic = "source_topic_" + randomAlphanumeric(3);
+        createTestTopic(sourceTopic, 1);
+        pulsar.operator().sendMessage(sourceTopic, Schema.STRING, randomAlphabetic(5));
+
+        String sourceTableName = randomAlphabetic(5);
+        final String createSourceTable =
+                String.format(
+                        "create table %s (\n"
+                                + "  name STRING\n"
+                                + ") with (\n"
+                                + "  'connector' = '%s',\n"
+                                + "  'topics' = '%s',\n"
+                                + "  'service-url' = '%s',\n"
+                                + "  'admin-url' = '%s',\n"
+                                + "  'pulsar.source.partitionDiscoveryIntervalMs' = '-1',\n"
+                                + "  'source.stop.at-message-id' = 'latest',\n"
+                                + "  'format' = '%s'\n"
+                                + ")",
+                        sourceTableName,
+                        PulsarTableFactory.IDENTIFIER,
+                        sourceTopic,
+                        pulsar.operator().serviceUrl(),
+                        pulsar.operator().adminUrl(),
+                        RAW_FORMAT);
+
+        tableEnv.executeSql(createSourceTable);
+        JobClient jobClient =
+                tableEnv.sqlQuery(String.format("SELECT * FROM %s", sourceTableName))
+                        .execute()
+                        .getJobClient()
+                        .get();
+        assertThatNoException()
+                .isThrownBy(
+                        () -> {
+                            JobExecutionResult result =
+                                    jobClient.getJobExecutionResult().get(1, TimeUnit.MINUTES);
+                        });
+    }
+
+    @Test
+    void sendMessageToTopicAndReadUntilBoundedStopCursorButHasPartitionDiscovery()
+            throws Exception {
+        final String sourceTopic = "source_topic_" + randomAlphanumeric(3);
+        createTestTopic(sourceTopic, 1);
+        pulsar.operator().sendMessage(sourceTopic, Schema.STRING, randomAlphabetic(5));
+
+        String sourceTableName = randomAlphabetic(5);
+        final String createSourceTable =
+                String.format(
+                        "create table %s (\n"
+                                + "  name STRING\n"
+                                + ") with (\n"
+                                + "  'connector' = '%s',\n"
+                                + "  'topics' = '%s',\n"
+                                + "  'service-url' = '%s',\n"
+                                + "  'admin-url' = '%s',\n"
+                                + "  'source.stop.at-message-id' = 'latest',\n"
+                                + "  'format' = '%s'\n"
+                                + ")",
+                        sourceTableName,
+                        PulsarTableFactory.IDENTIFIER,
+                        sourceTopic,
+                        pulsar.operator().serviceUrl(),
+                        pulsar.operator().adminUrl(),
+                        RAW_FORMAT);
+
+        tableEnv.executeSql(createSourceTable);
+        JobClient jobClient =
+                tableEnv.sqlQuery(String.format("SELECT * FROM %s", sourceTableName))
+                        .execute()
+                        .getJobClient()
+                        .get();
+        assertThatExceptionOfType(TimeoutException.class)
+                .isThrownBy(
+                        () -> {
+                            JobExecutionResult result =
+                                    jobClient.getJobExecutionResult().get(1, TimeUnit.MINUTES);
+                        });
     }
 
     private static final class TestingSinkFunction implements SinkFunction<Row> {
