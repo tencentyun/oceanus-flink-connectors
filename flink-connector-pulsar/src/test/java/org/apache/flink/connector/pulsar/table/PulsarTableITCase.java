@@ -29,6 +29,8 @@ import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.types.Row;
 
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
@@ -42,13 +44,16 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Stream;
 
 import static org.apache.commons.lang3.RandomStringUtils.randomAlphabetic;
 import static org.apache.commons.lang3.RandomStringUtils.randomAlphanumeric;
+import static org.apache.flink.connector.pulsar.common.utils.PulsarExceptionUtils.sneakyThrow;
 import static org.apache.flink.connector.pulsar.table.testutils.PulsarTableTestUtils.collectRows;
 import static org.apache.flink.connector.pulsar.table.testutils.TestingUser.createRandomUser;
 import static org.apache.flink.util.CollectionUtil.entry;
@@ -283,6 +288,53 @@ public class PulsarTableITCase extends PulsarTableTestBase {
                                 LocalDateTime.parse("2022-03-26T13:12:11.123"),
                                 map(entry("k1", "C0FFEE"), entry("k2", "BABE01")),
                                 true));
+    }
+
+    @Test
+    void sendMessageWithPropertiesAndReadPropertiesMetadata() throws Exception {
+        final String sourceTopic = "source_topic_" + randomAlphanumeric(3);
+        createTestTopic(sourceTopic, 1);
+
+        // create producer and send one message
+        String value = randomAlphabetic(5);
+        Map<String, String> properties = new HashMap<>();
+        properties.put("key1", "value1");
+        properties.put("key2", "value2");
+        try {
+            Producer<String> producer =
+                    pulsar.operator().createProducer(sourceTopic, Schema.STRING);
+            producer.newMessage().value(value).properties(properties).send();
+        } catch (PulsarClientException e) {
+            sneakyThrow(e);
+        }
+
+        String sourceTableName = randomAlphabetic(5);
+        final String createSourceTable =
+                String.format(
+                        "create table %s (\n"
+                                + "  name STRING\n,"
+                                + "  `properties` MAP<STRING, STRING> METADATA\n"
+                                + ") with (\n"
+                                + "  'connector' = '%s',\n"
+                                + "  'topics' = '%s',\n"
+                                + "  'service-url' = '%s',\n"
+                                + "  'admin-url' = '%s',\n"
+                                + "  'format' = '%s'\n"
+                                + ")",
+                        sourceTableName,
+                        PulsarTableFactory.IDENTIFIER,
+                        sourceTopic,
+                        pulsar.operator().serviceUrl(),
+                        pulsar.operator().adminUrl(),
+                        RAW_FORMAT);
+
+        tableEnv.executeSql(createSourceTable);
+        final List<Row> result =
+                collectRows(
+                        tableEnv.sqlQuery(String.format("SELECT * FROM %s", sourceTableName)), 1);
+        assertThat(result)
+                .containsExactlyInAnyOrder(
+                        Row.of(value, map(entry("key1", "value1"), entry("key2", "value2"))));
     }
 
     // TODO split this into two tests

@@ -278,6 +278,36 @@ public class PulsarRuntimeOperator implements Closeable {
     }
 
     /**
+     * Create a producer for a given topic and schema.
+     *
+     * @param topic The name of the topic.
+     * @param schema The schema for serialization.
+     * @param <T> The type of the record.
+     * @return producer instance.
+     */
+    @SuppressWarnings("unchecked")
+    public <T> Producer<T> createProducer(String topic, Schema<T> schema)
+            throws PulsarClientException {
+        TopicName topicName = TopicName.get(topic);
+        String name = topicName.getPartitionedTopicName();
+        int index = topicName.getPartitionIndex();
+        ConcurrentHashMap<Integer, Producer<?>> topicProducers =
+                producers.computeIfAbsent(name, d -> new ConcurrentHashMap<>());
+
+        return (Producer<T>)
+                topicProducers.computeIfAbsent(
+                        index,
+                        i -> {
+                            try {
+                                return client().newProducer(schema).topic(topic).create();
+                            } catch (PulsarClientException e) {
+                                sneakyThrow(e);
+                                return null;
+                            }
+                        });
+    }
+
+    /**
      * Send a single message to Pulsar, return the message id after the ack from Pulsar.
      *
      * @param topic The name of the topic.
@@ -506,28 +536,6 @@ public class PulsarRuntimeOperator implements Closeable {
     }
 
     // --------------------------- Private Methods -----------------------------
-
-    @SuppressWarnings("unchecked")
-    private <T> Producer<T> createProducer(String topic, Schema<T> schema)
-            throws PulsarClientException {
-        TopicName topicName = TopicName.get(topic);
-        String name = topicName.getPartitionedTopicName();
-        int index = topicName.getPartitionIndex();
-        ConcurrentHashMap<Integer, Producer<?>> topicProducers =
-                producers.computeIfAbsent(name, d -> new ConcurrentHashMap<>());
-
-        return (Producer<T>)
-                topicProducers.computeIfAbsent(
-                        index,
-                        i -> {
-                            try {
-                                return client().newProducer(schema).topic(topic).create();
-                            } catch (PulsarClientException e) {
-                                sneakyThrow(e);
-                                return null;
-                            }
-                        });
-    }
 
     @SuppressWarnings("unchecked")
     private <T> Consumer<T> createConsumer(String topic, Schema<T> schema)
