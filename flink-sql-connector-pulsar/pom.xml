@@ -24,9 +24,9 @@ under the License.
 	<modelVersion>4.0.0</modelVersion>
 
 	<parent>
-		<artifactId>flink-connectors</artifactId>
+		<artifactId>oceanus-flink-connectors</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>1.15.0</version>
+		<version>1.14.0</version>
 		<relativePath>..</relativePath>
 	</parent>
 

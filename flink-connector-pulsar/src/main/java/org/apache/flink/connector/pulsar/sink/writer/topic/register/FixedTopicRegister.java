@@ -19,7 +19,7 @@
 package org.apache.flink.connector.pulsar.sink.writer.topic.register;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.operators.ProcessingTimeService;
+import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.connector.pulsar.common.request.PulsarAdminRequest;
 import org.apache.flink.connector.pulsar.sink.config.SinkConfiguration;
 import org.apache.flink.connector.pulsar.sink.writer.topic.TopicRegister;
@@ -63,7 +63,7 @@ public class FixedTopicRegister<IN> implements TopicRegister<IN> {
     // Dynamic fields.
     private transient PulsarAdminRequest adminRequest;
     private transient Long topicMetadataRefreshInterval;
-    private transient ProcessingTimeService timeService;
+    private transient Sink.ProcessingTimeService timeService;
     private transient NotExistedTopicMetadataProvider metadataProvider;
 
     public FixedTopicRegister(List<String> topics) {
@@ -84,7 +84,7 @@ public class FixedTopicRegister<IN> implements TopicRegister<IN> {
     }
 
     @Override
-    public void open(SinkConfiguration sinkConfiguration, ProcessingTimeService timeService) {
+    public void open(SinkConfiguration sinkConfiguration, Sink.ProcessingTimeService timeService) {
         if (topicMetadata.isEmpty()) {
             LOG.info("No topics have been provided, skip listener initialize.");
             return;
@@ -150,7 +150,8 @@ public class FixedTopicRegister<IN> implements TopicRegister<IN> {
         // Register next timer.
         long currentProcessingTime = timeService.getCurrentProcessingTime();
         long triggerTime = currentProcessingTime + topicMetadataRefreshInterval;
-        timeService.registerTimer(triggerTime, time -> triggerNextTopicMetadataUpdate(false));
+        timeService.registerProcessingTimer(
+                triggerTime, time -> triggerNextTopicMetadataUpdate(false));
     }
 
     private void updateTopicMetadata() throws PulsarAdminException {

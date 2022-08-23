@@ -19,8 +19,7 @@
 package org.apache.flink.connector.pulsar.sink.writer.context;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.operators.ProcessingTimeService;
-import org.apache.flink.api.connector.sink2.Sink.InitContext;
+import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.connector.pulsar.sink.config.SinkConfiguration;
 
 /** An implementation that would contain all the required context. */
@@ -29,10 +28,11 @@ public class PulsarSinkContextImpl implements PulsarSinkContext {
 
     private final int numberOfParallelSubtasks;
     private final int parallelInstanceId;
-    private final ProcessingTimeService processingTimeService;
+    private final Sink.ProcessingTimeService processingTimeService;
     private final boolean enableSchemaEvolution;
 
-    public PulsarSinkContextImpl(InitContext initContext, SinkConfiguration sinkConfiguration) {
+    public PulsarSinkContextImpl(
+            Sink.InitContext initContext, SinkConfiguration sinkConfiguration) {
         this.parallelInstanceId = initContext.getSubtaskId();
         this.numberOfParallelSubtasks = initContext.getNumberOfParallelSubtasks();
         this.processingTimeService = initContext.getProcessingTimeService();

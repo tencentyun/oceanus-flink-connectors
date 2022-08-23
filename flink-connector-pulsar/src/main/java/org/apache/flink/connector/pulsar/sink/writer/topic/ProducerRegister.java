@@ -103,7 +103,7 @@ public class ProducerRegister implements Closeable {
         transactionRegister.forEach(
                 (topic, transaction) -> {
                     TxnID txnID = transaction.getTxnID();
-                    PulsarCommittable committable = new PulsarCommittable(txnID, topic);
+                    PulsarCommittable committable = new PulsarCommittable(txnID, topic, 0);
                     committables.add(committable);
                 });
 

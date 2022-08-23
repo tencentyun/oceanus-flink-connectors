@@ -135,7 +135,8 @@ public class PulsarTableOptionUtils {
     public static int[] createKeyFormatProjection(
             ReadableConfig options, DataType physicalDataType) {
         final LogicalType physicalType = physicalDataType.getLogicalType();
-        checkArgument(physicalType.is(LogicalTypeRoot.ROW), "Row data type expected.");
+        checkArgument(
+                physicalType.getTypeRoot().equals(LogicalTypeRoot.ROW), "Row data type expected.");
         final Optional<String> optionalKeyFormat = options.getOptional(KEY_FORMAT);
         final Optional<List<String>> optionalKeyFields = options.getOptional(KEY_FIELDS);
 
@@ -167,7 +168,8 @@ public class PulsarTableOptionUtils {
     public static int[] createValueFormatProjection(
             ReadableConfig options, DataType physicalDataType) {
         final LogicalType physicalType = physicalDataType.getLogicalType();
-        checkArgument(physicalType.is(LogicalTypeRoot.ROW), "Row data type expected.");
+        checkArgument(
+                physicalType.getTypeRoot().equals(LogicalTypeRoot.ROW), "Row data type expected.");
 
         final int physicalFieldCount = LogicalTypeChecks.getFieldCount(physicalType);
         final IntStream physicalFields = IntStream.range(0, physicalFieldCount);

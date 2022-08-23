@@ -34,9 +34,12 @@ public class PulsarCommittable {
     /** The topic name with partition information. */
     private final String topic;
 
-    public PulsarCommittable(TxnID txnID, String topic) {
+    private int numRetries;
+
+    public PulsarCommittable(TxnID txnID, String topic, int numRetries) {
         this.txnID = txnID;
         this.topic = topic;
+        this.numRetries = numRetries;
     }
 
     public TxnID getTxnID() {
@@ -45,6 +48,14 @@ public class PulsarCommittable {
 
     public String getTopic() {
         return topic;
+    }
+
+    public int getNumberOfRetries() {
+        return numRetries;
+    }
+
+    public void retryLater() {
+        numRetries++;
     }
 
     @Override
@@ -56,16 +67,26 @@ public class PulsarCommittable {
             return false;
         }
         PulsarCommittable that = (PulsarCommittable) o;
-        return Objects.equals(txnID, that.txnID) && Objects.equals(topic, that.topic);
+        return numRetries == that.numRetries
+                && Objects.equals(txnID, that.txnID)
+                && Objects.equals(topic, that.topic);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(txnID, topic);
+        return Objects.hash(txnID, topic, numRetries);
     }
 
     @Override
     public String toString() {
-        return "PulsarCommittable{" + "txnID=" + txnID + ", topic='" + topic + '\'' + '}';
+        return "PulsarCommittable{"
+                + "txnID="
+                + txnID
+                + ", topic='"
+                + topic
+                + '\''
+                + ", numRetries="
+                + numRetries
+                + '}';
     }
 }

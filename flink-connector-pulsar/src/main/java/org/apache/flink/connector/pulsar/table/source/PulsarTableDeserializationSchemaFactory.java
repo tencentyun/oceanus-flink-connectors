@@ -21,7 +21,6 @@ package org.apache.flink.connector.pulsar.table.source;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.connector.pulsar.source.reader.deserializer.PulsarDeserializationSchema;
-import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
@@ -115,7 +114,8 @@ public class PulsarTableDeserializationSchemaFactory implements Serializable {
             return null;
         }
 
-        DataType physicalFormatDataType = Projection.of(projection).project(this.physicalDataType);
+        DataType physicalFormatDataType =
+                DataTypeUtils.projectRow(this.physicalDataType, projection);
         if (prefix != null) {
             physicalFormatDataType = DataTypeUtils.stripRowPrefix(physicalFormatDataType, prefix);
         }
@@ -137,7 +137,7 @@ public class PulsarTableDeserializationSchemaFactory implements Serializable {
 
         // Get Physical Fields (key + value) + Format Metadata arity
         final int physicalPlusFormatMetadataArity =
-                DataType.getFieldDataTypes(producedDataType).size()
+                producedDataType.getChildren().size()
                         - readableMetadata.getConnectorMetadataArity();
         final int[] physicalValuePlusFormatMetadataProjection =
                 adjustValueProjectionByAppendConnectorMetadata(physicalPlusFormatMetadataArity);

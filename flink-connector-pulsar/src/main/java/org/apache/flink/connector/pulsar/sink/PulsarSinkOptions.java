@@ -201,8 +201,8 @@ public final class PulsarSinkOptions {
     public static final ConfigOption<Boolean> PULSAR_BATCHING_ENABLED =
             ConfigOptions.key(PRODUCER_CONFIG_PREFIX + "batchingEnabled")
                     .booleanType()
-                    .defaultValue(true)
-                    .withDescription("Enable batch send ability, it was enabled by default.");
+                    .defaultValue(false)
+                    .withDescription("Enable batch send ability, it was disabled by default.");
 
     public static final ConfigOption<Boolean> PULSAR_CHUNKING_ENABLED =
             ConfigOptions.key(PRODUCER_CONFIG_PREFIX + "chunkingEnabled")

@@ -55,6 +55,7 @@ import java.util.stream.Stream;
 
 import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_ADMIN_URL;
 import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_SERVICE_URL;
+import static org.apache.flink.connector.pulsar.sink.PulsarSinkOptions.PULSAR_WRITE_DELIVERY_GUARANTEE;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_SUBSCRIPTION_NAME;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptionUtils.createKeyFormatProjection;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptionUtils.createValueFormatProjection;
@@ -90,6 +91,7 @@ import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.VALUE_F
 import static org.apache.flink.connector.pulsar.table.PulsarTableValidationUtils.validatePrimaryKeyConstraints;
 import static org.apache.flink.connector.pulsar.table.PulsarTableValidationUtils.validateTableSinkOptions;
 import static org.apache.flink.connector.pulsar.table.PulsarTableValidationUtils.validateTableSourceOptions;
+import static org.apache.flink.connector.pulsar.table.TableSchemaUtils.getPrimaryKeyIndices;
 import static org.apache.flink.table.factories.FactoryUtil.SINK_PARALLELISM;
 import static org.apache.pulsar.shade.org.apache.commons.lang3.RandomStringUtils.randomAlphabetic;
 
@@ -128,7 +130,9 @@ public class PulsarTableFactory implements DynamicTableSourceFactory, DynamicTab
                 PulsarSinkOptions.SINK_CONFIG_PREFIX);
 
         validatePrimaryKeyConstraints(
-                context.getObjectIdentifier(), context.getPrimaryKeyIndexes(), helper);
+                context.getObjectIdentifier(),
+                getPrimaryKeyIndices(context.getCatalogTable().getResolvedSchema()),
+                helper);
 
         validateTableSourceOptions(tableOptions);
 
@@ -150,7 +154,8 @@ public class PulsarTableFactory implements DynamicTableSourceFactory, DynamicTab
                         .orElse(DEFAULT_SUBSCRIPTION_NAME_PREFIX + randomAlphabetic(5)));
         // Retrieve physical fields (not including computed or metadata fields),
         // and projections and create a schema factory based on such information.
-        final DataType physicalDataType = context.getPhysicalRowDataType();
+        final DataType physicalDataType =
+                context.getCatalogTable().getResolvedSchema().toPhysicalRowDataType();
 
         final int[] valueProjection = createValueFormatProjection(tableOptions, physicalDataType);
         final int[] keyProjection = createKeyFormatProjection(tableOptions, physicalDataType);
@@ -201,7 +206,9 @@ public class PulsarTableFactory implements DynamicTableSourceFactory, DynamicTab
                 PulsarSinkOptions.SINK_CONFIG_PREFIX);
 
         validatePrimaryKeyConstraints(
-                context.getObjectIdentifier(), context.getPrimaryKeyIndexes(), helper);
+                context.getObjectIdentifier(),
+                getPrimaryKeyIndices(context.getCatalogTable().getResolvedSchema()),
+                helper);
 
         validateTableSinkOptions(tableOptions);
 
@@ -219,7 +226,8 @@ public class PulsarTableFactory implements DynamicTableSourceFactory, DynamicTab
         properties.setProperty(PULSAR_SERVICE_URL.key(), tableOptions.get(SERVICE_URL));
 
         // Retrieve physical DataType (not including computed or metadata fields)
-        final DataType physicalDataType = context.getPhysicalRowDataType();
+        final DataType physicalDataType =
+                context.getCatalogTable().getResolvedSchema().toPhysicalRowDataType();
         final int[] keyProjection = createKeyFormatProjection(tableOptions, physicalDataType);
         final int[] valueProjection = createValueFormatProjection(tableOptions, physicalDataType);
 
@@ -233,7 +241,8 @@ public class PulsarTableFactory implements DynamicTableSourceFactory, DynamicTab
                         UPSERT_DISABLED);
 
         // Set default values for configuration not exposed to user.
-        final DeliveryGuarantee deliveryGuarantee = DeliveryGuarantee.AT_LEAST_ONCE;
+        final DeliveryGuarantee deliveryGuarantee =
+                tableOptions.get(PULSAR_WRITE_DELIVERY_GUARANTEE);
         final ChangelogMode changelogMode = valueEncodingFormat.getChangelogMode();
 
         return new PulsarTableSink(
@@ -284,7 +293,7 @@ public class PulsarTableFactory implements DynamicTableSourceFactory, DynamicTab
      *
      * @return
      */
-    @Override
+    //    @Override
     public Set<ConfigOption<?>> forwardOptions() {
         return Stream.of(
                         TOPICS,
