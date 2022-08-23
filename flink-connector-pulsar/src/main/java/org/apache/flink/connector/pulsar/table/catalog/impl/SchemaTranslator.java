@@ -22,8 +22,8 @@ import org.apache.flink.connector.pulsar.table.format.protobufnative.PulsarProto
 import org.apache.flink.formats.avro.AvroFormatFactory;
 import org.apache.flink.formats.avro.typeutils.AvroSchemaConverter;
 import org.apache.flink.formats.json.JsonFormatFactory;
-import org.apache.flink.formats.raw.RawFormatFactory;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.formats.raw.RawFormatFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.FieldsDataType;
 import org.apache.flink.table.types.logical.RowType;

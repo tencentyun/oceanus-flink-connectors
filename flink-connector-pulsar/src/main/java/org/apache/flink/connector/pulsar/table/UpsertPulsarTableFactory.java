@@ -87,6 +87,7 @@ import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.VALUE_F
 import static org.apache.flink.connector.pulsar.table.PulsarTableValidationUtils.validateTableSinkOptions;
 import static org.apache.flink.connector.pulsar.table.PulsarTableValidationUtils.validateTableSourceOptions;
 import static org.apache.flink.connector.pulsar.table.PulsarTableValidationUtils.validateUpsertModeKeyConstraints;
+import static org.apache.flink.connector.pulsar.table.TableSchemaUtils.getPrimaryKeyIndices;
 import static org.apache.flink.table.factories.FactoryUtil.SINK_PARALLELISM;
 import static org.apache.pulsar.shade.org.apache.commons.lang3.RandomStringUtils.randomAlphabetic;
 
@@ -142,10 +143,12 @@ public class UpsertPulsarTableFactory
                         .orElse(DEFAULT_SUBSCRIPTION_NAME_PREFIX + randomAlphabetic(5)));
         // Retrieve physical fields (not including computed or metadata fields),
         // and projections and create a schema factory based on such information.
-        final DataType physicalDataType = context.getPhysicalRowDataType();
+        final DataType physicalDataType =
+                context.getCatalogTable().getResolvedSchema().toPhysicalRowDataType();
 
         overrideKeyFieldOptionsForUpsertMode((Configuration) tableOptions, context);
-        validateUpsertModeKeyConstraints(tableOptions, context.getPrimaryKeyIndexes());
+        validateUpsertModeKeyConstraints(
+                tableOptions, getPrimaryKeyIndices(context.getCatalogTable().getResolvedSchema()));
         validateTableSourceOptions(tableOptions);
 
         final int[] valueProjection = createValueFormatProjection(tableOptions, physicalDataType);
@@ -214,11 +217,13 @@ public class UpsertPulsarTableFactory
         properties.setProperty(PULSAR_SERVICE_URL.key(), tableOptions.get(SERVICE_URL));
 
         // Retrieve physical DataType (not including computed or metadata fields)
-        final DataType physicalDataType = context.getPhysicalRowDataType();
+        final DataType physicalDataType =
+                context.getCatalogTable().getResolvedSchema().toPhysicalRowDataType();
 
         // retrieve primary key and replace key.fields
         overrideKeyFieldOptionsForUpsertMode((Configuration) tableOptions, context);
-        validateUpsertModeKeyConstraints(tableOptions, context.getPrimaryKeyIndexes());
+        validateUpsertModeKeyConstraints(
+                tableOptions, getPrimaryKeyIndices(context.getCatalogTable().getResolvedSchema()));
         validateTableSinkOptions(tableOptions);
 
         final int[] keyProjection = createKeyFormatProjection(tableOptions, physicalDataType);
@@ -288,7 +293,6 @@ public class UpsertPulsarTableFactory
      *
      * @return
      */
-    @Override
     public Set<ConfigOption<?>> forwardOptions() {
         return Stream.of(
                         TOPICS,

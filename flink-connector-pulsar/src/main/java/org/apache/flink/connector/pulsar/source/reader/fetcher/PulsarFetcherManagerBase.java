@@ -26,9 +26,11 @@ import org.apache.flink.connector.base.source.reader.fetcher.SplitFetcherManager
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
 import org.apache.flink.connector.pulsar.source.split.PulsarPartitionSplit;
+import org.apache.flink.util.FlinkRuntimeException;
 
 import org.apache.pulsar.client.api.Message;
 
+import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -81,9 +83,20 @@ public abstract class PulsarFetcherManagerBase
 
     @Override
     protected void startFetcher(SplitFetcher<Message<byte[]>, PulsarPartitionSplit> fetcher) {
-        if (fetcherStatus.get(fetcher.fetcherId()) != Boolean.TRUE) {
-            fetcherStatus.put(fetcher.fetcherId(), true);
+        final int fetcherId = fetcherId(fetcher);
+        if (fetcherStatus.get(fetcherId) != Boolean.TRUE) {
+            fetcherStatus.put(fetcherId, true);
             super.startFetcher(fetcher);
+        }
+    }
+
+    protected int fetcherId(SplitFetcher<Message<byte[]>, PulsarPartitionSplit> fetcher) {
+        try {
+            Field idField = fetcher.getClass().getDeclaredField("id");
+            idField.setAccessible(true);
+            return (int) idField.get(fetcher);
+        } catch (Exception e) {
+            throw new FlinkRuntimeException(e);
         }
     }
 
@@ -102,7 +115,7 @@ public abstract class PulsarFetcherManagerBase
                 fetcher = createSplitFetcher();
             }
         }
-        splitFetcherMapping.put(splitId, fetcher.fetcherId());
+        splitFetcherMapping.put(splitId, fetcherId(fetcher));
 
         return fetcher;
     }

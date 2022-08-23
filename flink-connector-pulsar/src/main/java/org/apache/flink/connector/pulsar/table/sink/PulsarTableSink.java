@@ -23,7 +23,7 @@ import org.apache.flink.connector.pulsar.sink.writer.router.TopicRoutingMode;
 import org.apache.flink.connector.pulsar.sink.writer.serializer.PulsarSerializationSchema;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
-import org.apache.flink.table.connector.sink.SinkV2Provider;
+import org.apache.flink.table.connector.sink.SinkProvider;
 import org.apache.flink.table.connector.sink.abilities.SupportsWritingMetadata;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
@@ -101,7 +101,7 @@ public class PulsarTableSink implements DynamicTableSink, SupportsWritingMetadat
         if (topicRouter != null) {
             pulsarSinkBuilder.setTopicRouter(topicRouter);
         }
-        return SinkV2Provider.of(pulsarSinkBuilder.build());
+        return SinkProvider.of(pulsarSinkBuilder.build());
     }
 
     @Override

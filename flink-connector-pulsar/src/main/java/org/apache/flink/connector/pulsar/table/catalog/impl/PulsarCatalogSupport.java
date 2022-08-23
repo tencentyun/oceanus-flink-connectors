@@ -23,7 +23,6 @@ import org.apache.flink.connector.pulsar.table.PulsarTableFactory;
 import org.apache.flink.connector.pulsar.table.PulsarTableOptions;
 import org.apache.flink.connector.pulsar.table.catalog.PulsarCatalogConfiguration;
 import org.apache.flink.connector.pulsar.table.catalog.utils.TableSchemaHelper;
-import org.apache.flink.formats.raw.RawFormatFactory;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.catalog.CatalogDatabase;
 import org.apache.flink.table.catalog.CatalogDatabaseImpl;
@@ -32,6 +31,7 @@ import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.factories.FactoryUtil;
+import org.apache.flink.table.formats.raw.RawFormatFactory;
 
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.naming.NamespaceName;

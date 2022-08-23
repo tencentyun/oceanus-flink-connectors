@@ -24,8 +24,8 @@ import org.apache.flink.connector.pulsar.sink.config.SinkConfiguration;
 import org.apache.flink.connector.pulsar.sink.writer.topic.TopicExtractor.TopicMetadataProvider;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicMetadata;
 
-import org.apache.flink.shaded.guava30.com.google.common.cache.Cache;
-import org.apache.flink.shaded.guava30.com.google.common.cache.CacheBuilder;
+import org.apache.flink.shaded.guava18.com.google.common.cache.Cache;
+import org.apache.flink.shaded.guava18.com.google.common.cache.CacheBuilder;
 
 import org.apache.pulsar.client.admin.PulsarAdminException;
 

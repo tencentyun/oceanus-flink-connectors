@@ -46,6 +46,7 @@ public class PulsarCommittableSerializer implements SimpleVersionedSerializer<Pu
             out.writeLong(txnID.getMostSigBits());
             out.writeLong(txnID.getLeastSigBits());
             out.writeUTF(obj.getTopic());
+            out.writeInt(obj.getNumberOfRetries());
             out.flush();
             return baos.toByteArray();
         }
@@ -59,7 +60,8 @@ public class PulsarCommittableSerializer implements SimpleVersionedSerializer<Pu
             long leastSigBits = in.readLong();
             TxnID txnID = new TxnID(mostSigBits, leastSigBits);
             String topic = in.readUTF();
-            return new PulsarCommittable(txnID, topic);
+            int numRetries = in.readInt();
+            return new PulsarCommittable(txnID, topic, numRetries);
         }
     }
 }

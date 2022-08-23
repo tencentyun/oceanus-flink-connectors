@@ -16,7 +16,6 @@ package org.apache.flink.connector.pulsar.table.sink;
 
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.connector.pulsar.sink.writer.serializer.PulsarSerializationSchema;
-import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.data.RowData;
@@ -105,7 +104,8 @@ public class PulsarTableSerializationSchemaFactory {
         if (format == null) {
             return null;
         }
-        DataType physicalFormatDataType = Projection.of(projection).project(this.physicalDataType);
+        DataType physicalFormatDataType =
+                DataTypeUtils.projectRow(this.physicalDataType, projection);
         if (prefix != null) {
             physicalFormatDataType = DataTypeUtils.stripRowPrefix(physicalFormatDataType, prefix);
         }

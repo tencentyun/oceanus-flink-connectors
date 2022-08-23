@@ -16,34 +16,28 @@
  * limitations under the License.
  */
 
-package org.apache.flink.connector.pulsar.sink.writer.topic.register;
+package org.apache.flink.connector.pulsar.sink.writer;
 
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.connector.sink.Sink;
-import org.apache.flink.connector.pulsar.sink.config.SinkConfiguration;
-import org.apache.flink.connector.pulsar.sink.writer.topic.TopicRegister;
+import org.apache.flink.core.io.SimpleVersionedSerializer;
 
 import java.io.IOException;
-import java.util.Collections;
-import java.util.List;
 
-/** The topic register which would do nothing for just return an empty topic partitions. */
-@Internal
-public class EmptyTopicRegister<IN> implements TopicRegister<IN> {
-    private static final long serialVersionUID = -9199261243659491097L;
+/** A serializer used to serialize {@link PulsarWriterState}. */
+public class PulsarWriterStateSerializer implements SimpleVersionedSerializer<PulsarWriterState> {
+    private static final int VERSION = 1;
 
     @Override
-    public List<String> topics(IN in) {
-        return Collections.emptyList();
+    public int getVersion() {
+        return VERSION;
     }
 
     @Override
-    public void open(SinkConfiguration sinkConfiguration, Sink.ProcessingTimeService timeService) {
-        // Nothing to do.
+    public byte[] serialize(PulsarWriterState obj) throws IOException {
+        return new byte[0];
     }
 
     @Override
-    public void close() throws IOException {
-        // Nothing to do.
+    public PulsarWriterState deserialize(int version, byte[] serialized) throws IOException {
+        return new PulsarWriterState();
     }
 }

@@ -16,27 +16,25 @@
  * limitations under the License.
  */
 
-package org.apache.flink.connector.pulsar.sink.writer.topic;
+package org.apache.flink.connector.pulsar.table;
 
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.connector.sink.Sink;
-import org.apache.flink.connector.pulsar.sink.config.SinkConfiguration;
+import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.catalog.UniqueConstraint;
 
-import java.io.Closeable;
-import java.io.Serializable;
 import java.util.List;
 
-/** The topic register for returning the available topic partitions. */
-@Internal
-public interface TopicRegister<IN> extends Serializable, Closeable {
-
+/** Utilities schema. */
+public class TableSchemaUtils {
     /**
-     * Return all the available topic partitions. We would recalculate the partitions if the topic
-     * metadata has been changed. Otherwise, we would return the cached result for better
-     * performance.
+     * Returns the field indices of primary key in the physical columns of this schema (not include
+     * computed columns or metadata columns).
      */
-    List<String> topics(IN in);
-
-    /** Register the topic metadata update in process time service. */
-    void open(SinkConfiguration sinkConfiguration, Sink.ProcessingTimeService timeService);
+    public static int[] getPrimaryKeyIndices(ResolvedSchema resolvedSchema) {
+        final List<String> columns = resolvedSchema.getColumnNames();
+        return resolvedSchema
+                .getPrimaryKey()
+                .map(UniqueConstraint::getColumns)
+                .map(pkColumns -> pkColumns.stream().mapToInt(columns::indexOf).toArray())
+                .orElseGet(() -> new int[] {});
+    }
 }

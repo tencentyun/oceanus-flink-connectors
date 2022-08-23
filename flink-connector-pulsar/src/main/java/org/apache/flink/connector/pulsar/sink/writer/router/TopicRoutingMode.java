@@ -20,7 +20,6 @@ package org.apache.flink.connector.pulsar.sink.writer.router;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.configuration.DescribedEnum;
 import org.apache.flink.configuration.description.InlineElement;
 
 import static org.apache.flink.configuration.description.TextElement.code;
@@ -29,7 +28,7 @@ import static org.apache.flink.connector.pulsar.sink.PulsarSinkOptions.PULSAR_BA
 
 /** The routing policy for choosing the desired topic by the given message. */
 @PublicEvolving
-public enum TopicRoutingMode implements DescribedEnum {
+public enum TopicRoutingMode {
 
     /**
      * The producer will publish messages across all partitions in a round-robin fashion to achieve
@@ -75,7 +74,6 @@ public enum TopicRoutingMode implements DescribedEnum {
     }
 
     @Internal
-    @Override
     public InlineElement getDescription() {
         return desc;
     }

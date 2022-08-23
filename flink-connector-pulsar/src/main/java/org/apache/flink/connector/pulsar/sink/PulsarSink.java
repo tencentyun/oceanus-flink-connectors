@@ -18,16 +18,19 @@
 
 package org.apache.flink.connector.pulsar.sink;
 
-import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.connector.sink2.Committer;
-import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
+import org.apache.flink.api.connector.sink.Committer;
+import org.apache.flink.api.connector.sink.GlobalCommitter;
+import org.apache.flink.api.connector.sink.Sink;
+import org.apache.flink.api.connector.sink.SinkWriter;
 import org.apache.flink.connector.base.DeliveryGuarantee;
 import org.apache.flink.connector.pulsar.sink.committer.PulsarCommittable;
 import org.apache.flink.connector.pulsar.sink.committer.PulsarCommittableSerializer;
 import org.apache.flink.connector.pulsar.sink.committer.PulsarCommitter;
 import org.apache.flink.connector.pulsar.sink.config.SinkConfiguration;
 import org.apache.flink.connector.pulsar.sink.writer.PulsarWriter;
+import org.apache.flink.connector.pulsar.sink.writer.PulsarWriterState;
+import org.apache.flink.connector.pulsar.sink.writer.PulsarWriterStateSerializer;
 import org.apache.flink.connector.pulsar.sink.writer.delayer.MessageDelayer;
 import org.apache.flink.connector.pulsar.sink.writer.router.KeyHashTopicRouter;
 import org.apache.flink.connector.pulsar.sink.writer.router.RoundRobinTopicRouter;
@@ -40,6 +43,10 @@ import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 
 import javax.annotation.Nullable;
+
+import java.io.IOException;
+import java.util.List;
+import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -81,7 +88,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @param <IN> The input type of the sink.
  */
 @PublicEvolving
-public class PulsarSink<IN> implements TwoPhaseCommittingSink<IN, PulsarCommittable> {
+public class PulsarSink<IN> implements Sink<IN, PulsarCommittable, PulsarWriterState, Void> {
     private static final long serialVersionUID = 4416714587951282119L;
 
     private final SinkConfiguration sinkConfiguration;
@@ -127,9 +134,9 @@ public class PulsarSink<IN> implements TwoPhaseCommittingSink<IN, PulsarCommitta
         return new PulsarSinkBuilder<>();
     }
 
-    @Internal
     @Override
-    public PrecommittingSinkWriter<IN, PulsarCommittable> createWriter(InitContext initContext) {
+    public SinkWriter<IN, PulsarCommittable, PulsarWriterState> createWriter(
+            InitContext initContext, List<PulsarWriterState> states) {
         return new PulsarWriter<>(
                 sinkConfiguration,
                 serializationSchema,
@@ -140,15 +147,29 @@ public class PulsarSink<IN> implements TwoPhaseCommittingSink<IN, PulsarCommitta
                 initContext);
     }
 
-    @Internal
     @Override
-    public Committer<PulsarCommittable> createCommitter() {
-        return new PulsarCommitter(sinkConfiguration);
+    public Optional<SimpleVersionedSerializer<PulsarWriterState>> getWriterStateSerializer() {
+        return Optional.of(new PulsarWriterStateSerializer());
     }
 
-    @Internal
     @Override
-    public SimpleVersionedSerializer<PulsarCommittable> getCommittableSerializer() {
-        return new PulsarCommittableSerializer();
+    public Optional<Committer<PulsarCommittable>> createCommitter() {
+        return Optional.of(new PulsarCommitter(sinkConfiguration));
+    }
+
+    @Override
+    public Optional<GlobalCommitter<PulsarCommittable, Void>> createGlobalCommitter()
+            throws IOException {
+        return Optional.empty();
+    }
+
+    @Override
+    public Optional<SimpleVersionedSerializer<PulsarCommittable>> getCommittableSerializer() {
+        return Optional.of(new PulsarCommittableSerializer());
+    }
+
+    @Override
+    public Optional<SimpleVersionedSerializer<Void>> getGlobalCommittableSerializer() {
+        return Optional.empty();
     }
 }

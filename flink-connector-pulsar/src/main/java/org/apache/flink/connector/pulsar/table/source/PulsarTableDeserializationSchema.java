@@ -96,7 +96,7 @@ public class PulsarTableDeserializationSchema implements PulsarDeserializationSc
         // Get the value row data
         List<RowData> valueRowData = new ArrayList<>();
 
-        if (upsertMode && message.getData().length == 0) {
+        if (upsertMode && message.getData() == null) {
             checkNotNull(keyDeserialization, "upsert mode must specify a key format");
             rowDataConverter.projectToRowWithNullValueRow(message, keyRowData, collector);
             return;

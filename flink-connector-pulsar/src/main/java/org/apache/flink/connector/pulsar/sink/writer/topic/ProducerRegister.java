@@ -24,7 +24,7 @@ import org.apache.flink.connector.pulsar.sink.committer.PulsarCommittable;
 import org.apache.flink.connector.pulsar.sink.config.SinkConfiguration;
 import org.apache.flink.util.FlinkRuntimeException;
 
-import org.apache.flink.shaded.guava30.com.google.common.io.Closer;
+import org.apache.flink.shaded.guava18.com.google.common.io.Closer;
 
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.Producer;
@@ -103,7 +103,7 @@ public class ProducerRegister implements Closeable {
         transactionRegister.forEach(
                 (topic, transaction) -> {
                     TxnID txnID = transaction.getTxnID();
-                    PulsarCommittable committable = new PulsarCommittable(txnID, topic);
+                    PulsarCommittable committable = new PulsarCommittable(txnID, topic, 0);
                     committables.add(committable);
                 });
 

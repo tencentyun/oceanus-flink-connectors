@@ -19,10 +19,10 @@
 package org.apache.flink.connector.pulsar.sink.writer;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.operators.ProcessingTimeService;
 import org.apache.flink.api.common.serialization.SerializationSchema.InitializationContext;
-import org.apache.flink.api.connector.sink2.Sink.InitContext;
-import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink.PrecommittingSinkWriter;
+import org.apache.flink.api.connector.sink.InitContextInitializationContextAdapter;
+import org.apache.flink.api.connector.sink.Sink;
+import org.apache.flink.api.connector.sink.SinkWriter;
 import org.apache.flink.connector.base.DeliveryGuarantee;
 import org.apache.flink.connector.pulsar.sink.committer.PulsarCommittable;
 import org.apache.flink.connector.pulsar.sink.config.SinkConfiguration;
@@ -35,8 +35,9 @@ import org.apache.flink.connector.pulsar.sink.writer.serializer.PulsarSerializat
 import org.apache.flink.connector.pulsar.sink.writer.topic.ProducerRegister;
 import org.apache.flink.connector.pulsar.sink.writer.topic.TopicRegister;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.UserCodeClassLoader;
 
-import org.apache.flink.shaded.guava30.com.google.common.base.Strings;
+import org.apache.flink.shaded.guava18.com.google.common.base.Strings;
 
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.Schema;
@@ -48,7 +49,7 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.Base64;
-import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
@@ -64,7 +65,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @param <IN> The type of the input elements.
  */
 @Internal
-public class PulsarWriter<IN> implements PrecommittingSinkWriter<IN, PulsarCommittable> {
+public class PulsarWriter<IN> implements SinkWriter<IN, PulsarCommittable, PulsarWriterState> {
     private static final Logger LOG = LoggerFactory.getLogger(PulsarWriter.class);
 
     private final PulsarSerializationSchema<IN> serializationSchema;
@@ -96,7 +97,7 @@ public class PulsarWriter<IN> implements PrecommittingSinkWriter<IN, PulsarCommi
             TopicRouter<IN> topicRouter,
             MessageDelayer<IN> messageDelayer,
             @Nullable CryptoKeyReader cryptoKeyReader,
-            InitContext initContext) {
+            Sink.InitContext initContext) {
         checkNotNull(sinkConfiguration);
         this.serializationSchema = checkNotNull(serializationSchema);
         this.topicRegister = checkNotNull(topicRegister);
@@ -109,7 +110,7 @@ public class PulsarWriter<IN> implements PrecommittingSinkWriter<IN, PulsarCommi
 
         // Initialize topic metadata listener.
         LOG.debug("Initialize topic metadata after creating Pulsar writer.");
-        ProcessingTimeService timeService = initContext.getProcessingTimeService();
+        Sink.ProcessingTimeService timeService = initContext.getProcessingTimeService();
         this.topicRegister.open(sinkConfiguration, timeService);
 
         // Initialize topic router.
@@ -118,7 +119,18 @@ public class PulsarWriter<IN> implements PrecommittingSinkWriter<IN, PulsarCommi
         // Initialize the serialization schema.
         try {
             InitializationContext initializationContext =
-                    initContext.asSerializationSchemaInitializationContext();
+                    new InitContextInitializationContextAdapter(
+                            new UserCodeClassLoader() {
+                                @Override
+                                public ClassLoader asClassLoader() {
+                                    return Thread.currentThread().getContextClassLoader();
+                                }
+
+                                @Override
+                                public void registerReleaseHookIfAbsent(
+                                        String releaseHookName, Runnable releaseHook) {}
+                            },
+                            () -> initContext.metricGroup().addGroup("user"));
             this.serializationSchema.open(initializationContext, sinkContext, sinkConfiguration);
         } catch (Exception e) {
             throw new FlinkRuntimeException("Cannot initialize schema.", e);
@@ -129,7 +141,7 @@ public class PulsarWriter<IN> implements PrecommittingSinkWriter<IN, PulsarCommi
     }
 
     @Override
-    public void write(IN element, Context context) throws IOException, InterruptedException {
+    public void write(IN element, Context context) throws IOException {
         PulsarMessage<?> message = serializationSchema.serialize(element, sinkContext);
 
         // Choose the right topic to send.
@@ -237,7 +249,6 @@ public class PulsarWriter<IN> implements PrecommittingSinkWriter<IN, PulsarCommi
         return builder;
     }
 
-    @Override
     public void flush(boolean endOfInput) throws IOException {
         if (endOfInput || deliveryGuarantee != DeliveryGuarantee.NONE) {
             LOG.info("Flush the pending messages to Pulsar.");
@@ -252,12 +263,18 @@ public class PulsarWriter<IN> implements PrecommittingSinkWriter<IN, PulsarCommi
     }
 
     @Override
-    public Collection<PulsarCommittable> prepareCommit() {
+    public List<PulsarCommittable> prepareCommit(boolean flush) throws IOException {
+        flush(flush);
         if (deliveryGuarantee == DeliveryGuarantee.EXACTLY_ONCE) {
             return producerRegister.prepareCommit();
         } else {
             return emptyList();
         }
+    }
+
+    @Override
+    public List<PulsarWriterState> snapshotState() throws IOException {
+        return Collections.emptyList();
     }
 
     @Override

@@ -116,7 +116,9 @@ public class PulsarRowDataConverter implements Serializable {
                         rowKind, physicalArity + readableMetadata.getConnectorMetadataArity());
 
         for (int valuePos = 0; valuePos < valueProjection.length; valuePos++) {
-            producedRow.setField(valueProjection[valuePos], physicalValueRow.getField(valuePos));
+            producedRow.setField(
+                    valueProjection[valuePos],
+                    physicalValueRow == null ? null : physicalValueRow.getField(valuePos));
         }
 
         for (int keyPos = 0; keyPos < keyProjection.length; keyPos++) {

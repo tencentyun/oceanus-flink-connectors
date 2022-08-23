@@ -19,7 +19,7 @@
 package org.apache.flink.connector.pulsar.sink.writer.topic.register;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.operators.ProcessingTimeService;
+import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.connector.pulsar.common.request.PulsarAdminRequest;
 import org.apache.flink.connector.pulsar.sink.config.SinkConfiguration;
 import org.apache.flink.connector.pulsar.sink.writer.topic.TopicExtractor;
@@ -30,8 +30,8 @@ import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicMetadata;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicPartition;
 import org.apache.flink.util.FlinkRuntimeException;
 
-import org.apache.flink.shaded.guava30.com.google.common.cache.Cache;
-import org.apache.flink.shaded.guava30.com.google.common.cache.CacheBuilder;
+import org.apache.flink.shaded.guava18.com.google.common.cache.Cache;
+import org.apache.flink.shaded.guava18.com.google.common.cache.CacheBuilder;
 
 import org.apache.pulsar.client.admin.PulsarAdminException;
 
@@ -99,7 +99,7 @@ public class DynamicTopicRegister<IN> implements TopicRegister<IN> {
     }
 
     @Override
-    public void open(SinkConfiguration sinkConfiguration, ProcessingTimeService timeService) {
+    public void open(SinkConfiguration sinkConfiguration, Sink.ProcessingTimeService timeService) {
         // Initialize Pulsar admin instance.
         this.adminRequest = new PulsarAdminRequest(sinkConfiguration);
         this.cachedMetadataProvider =
