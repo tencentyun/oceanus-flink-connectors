@@ -29,14 +29,17 @@ public class PublishTimestampStopCursor implements StopCursor {
     private static final long serialVersionUID = 4386276745339324527L;
 
     private final long timestamp;
+    private final boolean inclusive;
 
-    public PublishTimestampStopCursor(long timestamp) {
+    public PublishTimestampStopCursor(long timestamp, boolean inclusive) {
         this.timestamp = timestamp;
+        this.inclusive = inclusive;
     }
 
     @Override
-    public boolean shouldStop(Message<?> message) {
-        return message.getPublishTime() >= timestamp;
+    public StopCondition shouldStop(Message<?> message) {
+        long publishTime = message.getPublishTime();
+        return StopCondition.compare(timestamp, publishTime, inclusive);
     }
 
     @Override
@@ -48,11 +51,11 @@ public class PublishTimestampStopCursor implements StopCursor {
             return false;
         }
         PublishTimestampStopCursor that = (PublishTimestampStopCursor) o;
-        return timestamp == that.timestamp;
+        return timestamp == that.timestamp && inclusive == that.inclusive;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(timestamp);
+        return Objects.hash(timestamp, inclusive);
     }
 }

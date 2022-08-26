@@ -23,14 +23,14 @@ import org.apache.flink.connector.pulsar.source.enumerator.cursor.StartCursor;
 
 import java.util.Objects;
 
-/** This cursor make pulsar start consuming from a specific publish timestamp. */
-public class PublishTimestampStartCursor implements StartCursor {
+/** This cursor would left pulsar start consuming from a specific publish timestamp. */
+public class TimestampStartCursor implements StartCursor {
     private static final long serialVersionUID = 5170578885838095320L;
 
     private final long timestamp;
 
-    public PublishTimestampStartCursor(long timestamp) {
-        this.timestamp = timestamp;
+    public TimestampStartCursor(long timestamp, boolean inclusive) {
+        this.timestamp = inclusive ? timestamp : timestamp + 1;
     }
 
     @Override
@@ -46,7 +46,7 @@ public class PublishTimestampStartCursor implements StartCursor {
         if (o == null || getClass() != o.getClass()) {
             return false;
         }
-        PublishTimestampStartCursor that = (PublishTimestampStartCursor) o;
+        TimestampStartCursor that = (TimestampStartCursor) o;
         return timestamp == that.timestamp;
     }
 

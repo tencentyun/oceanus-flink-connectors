@@ -85,7 +85,7 @@ import static org.assertj.core.api.Assertions.assertThat;
     TestOrderlinessExtension.class,
     TestLoggerExtension.class,
 })
-public abstract class PulsarPartitionSplitReaderTestBase extends PulsarTestSuiteBase {
+abstract class PulsarPartitionSplitReaderTestBase extends PulsarTestSuiteBase {
 
     @RegisterExtension
     PulsarSplitReaderInvocationContextProvider provider =
@@ -136,8 +136,7 @@ public abstract class PulsarPartitionSplitReaderTestBase extends PulsarTestSuite
         SplitsAddition<PulsarPartitionSplit> addition = new SplitsAddition<>(singletonList(split));
 
         // create consumer and seek before split changes
-        try (Consumer<byte[]> consumer =
-                (Consumer<byte[]>) reader.createPulsarConsumer(partition)) {
+        try (Consumer<byte[]> consumer = reader.createPulsarConsumer(partition)) {
             // inclusive messageId
             consumer.seek(startPosition);
         } catch (PulsarClientException e) {
@@ -185,7 +184,7 @@ public abstract class PulsarPartitionSplitReaderTestBase extends PulsarTestSuite
         if (verify) {
             assertThat(messages).as("We should fetch the expected size").hasSize(expectedCount);
             if (boundedness == Boundedness.CONTINUOUS_UNBOUNDED) {
-                assertThat(finishedSplits).as("Split should not be marked as finished").hasSize(0);
+                assertThat(finishedSplits).as("Split should not be marked as finished").isEmpty();
             } else {
                 assertThat(finishedSplits).as("Split should be marked as finished").hasSize(1);
             }

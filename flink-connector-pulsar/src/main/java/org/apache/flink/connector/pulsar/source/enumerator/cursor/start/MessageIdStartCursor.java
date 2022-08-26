@@ -23,13 +23,12 @@ import org.apache.flink.connector.pulsar.source.enumerator.cursor.StartCursor;
 
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
-import org.apache.pulsar.client.internal.DefaultImplementation;
 
 import java.util.Objects;
 
-import static org.apache.flink.util.Preconditions.checkState;
+import static org.apache.flink.connector.pulsar.source.enumerator.cursor.MessageIdUtils.nextMessageId;
+import static org.apache.flink.connector.pulsar.source.enumerator.cursor.MessageIdUtils.unwrapMessageId;
 
 /** This cursor would leave pulsar start consuming from a specific message id. */
 public class MessageIdStartCursor implements StartCursor {
@@ -47,38 +46,16 @@ public class MessageIdStartCursor implements StartCursor {
      * code</a> for understanding pulsar internal logic.
      *
      * @param messageId The message id for start position.
-     * @param inclusive Should we include the start message id in consuming result. This is works
-     *     only if we provide a specified message id instead of {@link MessageId#earliest} or {@link
+     * @param inclusive Whether we include the start message id in consuming result. This works only
+     *     if we provide a specified message id instead of {@link MessageId#earliest} or {@link
      *     MessageId#latest}.
      */
     public MessageIdStartCursor(MessageId messageId, boolean inclusive) {
-        MessageIdImpl id = MessageIdImpl.convertToMessageIdImpl(messageId);
-        checkState(
-                !(id instanceof BatchMessageIdImpl),
-                "We only support normal message id currently.");
-
-        if (MessageId.earliest.equals(id) || MessageId.latest.equals(id) || inclusive) {
-            this.messageId = id;
+        MessageIdImpl idImpl = unwrapMessageId(messageId);
+        if (MessageId.earliest.equals(idImpl) || MessageId.latest.equals(idImpl) || inclusive) {
+            this.messageId = idImpl;
         } else {
-            this.messageId = getNext(id);
-        }
-    }
-
-    /**
-     * The implementation from the <a
-     * href="https://github.com/apache/pulsar/blob/7c8dc3201baad7d02d886dbc26db5c03abce77d6/managed-ledger/src/main/java/org/apache/bookkeeper/mledger/impl/PositionImpl.java#L85">this
-     * code</a> to get the next message id.
-     */
-    public static MessageId getNext(MessageIdImpl messageId) {
-        if (messageId.getEntryId() < 0) {
-            return DefaultImplementation.getDefaultImplementation()
-                    .newMessageId(messageId.getLedgerId(), 0, messageId.getPartitionIndex());
-        } else {
-            return DefaultImplementation.getDefaultImplementation()
-                    .newMessageId(
-                            messageId.getLedgerId(),
-                            messageId.getEntryId() + 1,
-                            messageId.getPartitionIndex());
+            this.messageId = nextMessageId(idImpl);
         }
     }
 

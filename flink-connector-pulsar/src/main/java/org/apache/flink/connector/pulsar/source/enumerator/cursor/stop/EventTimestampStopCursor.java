@@ -29,14 +29,17 @@ public class EventTimestampStopCursor implements StopCursor {
     private static final long serialVersionUID = 2391576769339369027L;
 
     private final long timestamp;
+    private final boolean inclusive;
 
-    public EventTimestampStopCursor(long timestamp) {
+    public EventTimestampStopCursor(long timestamp, boolean inclusive) {
         this.timestamp = timestamp;
+        this.inclusive = inclusive;
     }
 
     @Override
-    public boolean shouldStop(Message<?> message) {
-        return message.getEventTime() >= timestamp;
+    public StopCondition shouldStop(Message<?> message) {
+        long eventTime = message.getEventTime();
+        return StopCondition.compare(timestamp, eventTime, inclusive);
     }
 
     @Override
@@ -48,11 +51,11 @@ public class EventTimestampStopCursor implements StopCursor {
             return false;
         }
         EventTimestampStopCursor that = (EventTimestampStopCursor) o;
-        return timestamp == that.timestamp;
+        return timestamp == that.timestamp && inclusive == that.inclusive;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(timestamp);
+        return Objects.hash(timestamp, inclusive);
     }
 }

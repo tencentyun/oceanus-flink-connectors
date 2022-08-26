@@ -18,15 +18,16 @@
 
 package org.apache.flink.connector.pulsar.source.enumerator.cursor;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 
 import org.apache.pulsar.client.api.MessageId;
 
-import javax.annotation.Nullable;
-
 import java.io.Serializable;
 
-/** The class for defining the start or stop position. */
+/**
+ * The class for defining the start or stop position. We only expose the constructor for end user.
+ */
 @PublicEvolving
 public final class CursorPosition implements Serializable {
     private static final long serialVersionUID = -802405183307684549L;
@@ -37,26 +38,29 @@ public final class CursorPosition implements Serializable {
 
     private final Long timestamp;
 
-    public CursorPosition(@Nullable MessageId messageId) {
+    public CursorPosition(MessageId messageId) {
         this.type = Type.MESSAGE_ID;
         this.messageId = messageId;
         this.timestamp = null;
     }
 
-    public CursorPosition(@Nullable Long timestamp) {
+    public CursorPosition(Long timestamp) {
         this.type = Type.TIMESTAMP;
         this.messageId = null;
         this.timestamp = timestamp;
     }
 
+    @Internal
     public Type getType() {
         return type;
     }
 
+    @Internal
     public MessageId getMessageId() {
         return messageId;
     }
 
+    @Internal
     public Long getTimestamp() {
         return timestamp;
     }
@@ -73,7 +77,7 @@ public final class CursorPosition implements Serializable {
     /**
      * The position type for reader to choose whether timestamp or message id as the start position.
      */
-    @PublicEvolving
+    @Internal
     public enum Type {
         TIMESTAMP,
 

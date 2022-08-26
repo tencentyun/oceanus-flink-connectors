@@ -22,6 +22,8 @@ import org.apache.flink.connector.pulsar.source.enumerator.assigner.SplitAssigne
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicPartition;
 import org.apache.flink.connector.pulsar.source.split.PulsarPartitionSplit;
 
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
@@ -47,11 +49,12 @@ public class PulsarSourceEnumState {
     private final Map<Integer, Set<PulsarPartitionSplit>> sharedPendingPartitionSplits;
 
     /**
-     * It is used for Shared subscription. A {@link PulsarPartitionSplit} should be assigned for all
-     * flink readers. Using this map for recording assign status.
+     * It is used for Shared subscription. Every {@link PulsarPartitionSplit} should be assigned for
+     * all flink readers. Using this map for recording assign status.
      */
     private final Map<Integer, Set<String>> readerAssignedSplits;
 
+    /** The pipeline has been triggered and topic partitions have been assigned to readers. */
     private final boolean initialized;
 
     public PulsarSourceEnumState(
@@ -85,5 +88,11 @@ public class PulsarSourceEnumState {
 
     public boolean isInitialized() {
         return initialized;
+    }
+
+    /** The initial assignment state for Pulsar. */
+    public static PulsarSourceEnumState initialState() {
+        return new PulsarSourceEnumState(
+                new HashSet<>(), new HashSet<>(), new HashMap<>(), new HashMap<>(), false);
     }
 }

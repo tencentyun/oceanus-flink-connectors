@@ -22,13 +22,14 @@ import org.apache.flink.connector.pulsar.source.enumerator.cursor.StopCursor;
 
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 
 import java.util.Objects;
 
+import static org.apache.flink.connector.pulsar.source.enumerator.cursor.MessageIdUtils.unwrapMessageId;
 import static org.apache.flink.util.Preconditions.checkArgument;
-import static org.apache.flink.util.Preconditions.checkState;
+import static org.apache.pulsar.client.api.MessageId.earliest;
+import static org.apache.pulsar.client.api.MessageId.latest;
 
 /**
  * Stop consuming message at a given message id. We use the {@link MessageId#compareTo(Object)} for
@@ -39,34 +40,23 @@ public class MessageIdStopCursor implements StopCursor {
 
     private final MessageId messageId;
 
-    private final boolean exclusive;
+    private final boolean inclusive;
 
-    public MessageIdStopCursor(MessageId messageId) {
-        this(messageId, true);
-    }
-
-    public MessageIdStopCursor(MessageId messageId, boolean exclusive) {
-        MessageIdImpl id = MessageIdImpl.convertToMessageIdImpl(messageId);
-        checkState(
-                !(id instanceof BatchMessageIdImpl),
-                "We only support normal message id currently.");
-        checkArgument(!MessageId.earliest.equals(id), "MessageId.earliest is not supported.");
+    public MessageIdStopCursor(MessageId messageId, boolean inclusive) {
+        MessageIdImpl idImpl = unwrapMessageId(messageId);
+        checkArgument(!earliest.equals(idImpl), "MessageId.earliest is not supported.");
         checkArgument(
-                !MessageId.latest.equals(id),
+                !latest.equals(idImpl),
                 "MessageId.latest is not supported, use LatestMessageStopCursor instead.");
 
-        this.messageId = id;
-        this.exclusive = exclusive;
+        this.messageId = idImpl;
+        this.inclusive = inclusive;
     }
 
     @Override
-    public boolean shouldStop(Message<?> message) {
-        MessageId id = message.getMessageId();
-        if (exclusive) {
-            return id.compareTo(messageId) > 0;
-        } else {
-            return id.compareTo(messageId) >= 0;
-        }
+    public StopCondition shouldStop(Message<?> message) {
+        MessageId current = message.getMessageId();
+        return StopCondition.compare(messageId, current, inclusive);
     }
 
     @Override
@@ -78,11 +68,11 @@ public class MessageIdStopCursor implements StopCursor {
             return false;
         }
         MessageIdStopCursor that = (MessageIdStopCursor) o;
-        return exclusive == that.exclusive && messageId.equals(that.messageId);
+        return inclusive == that.inclusive && Objects.equals(messageId, that.messageId);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(messageId, exclusive);
+        return Objects.hash(messageId, inclusive);
     }
 }

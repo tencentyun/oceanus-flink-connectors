@@ -523,7 +523,11 @@ public final class PulsarSourceOptions {
                                             code("PulsarClientException"))
                                     .build());
 
-    /** @deprecated This option would be reset by {@link StartCursor}, no need to use it anymore. */
+    /**
+     * @deprecated This option would be reset by {@link StartCursor}, no need to use it anymore.
+     *     Pulsar didn't support this config option before 1.10.1, so we have to remove this config
+     *     option.
+     */
     @Deprecated
     public static final ConfigOption<SubscriptionInitialPosition>
             PULSAR_SUBSCRIPTION_INITIAL_POSITION =

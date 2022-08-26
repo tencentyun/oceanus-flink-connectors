@@ -26,6 +26,7 @@ import org.apache.flink.connector.base.source.reader.splitreader.SplitsAddition;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitsChange;
 import org.apache.flink.connector.pulsar.source.config.SourceConfiguration;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.StopCursor;
+import org.apache.flink.connector.pulsar.source.enumerator.cursor.StopCursor.StopCondition;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicPartition;
 import org.apache.flink.connector.pulsar.source.split.PulsarPartitionSplit;
 import org.apache.flink.util.Preconditions;
@@ -49,7 +50,6 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.apache.flink.connector.pulsar.common.utils.PulsarExceptionUtils.sneakyClient;
 import static org.apache.flink.connector.pulsar.source.config.PulsarSourceConfigUtils.createConsumerBuilder;
@@ -65,8 +65,6 @@ abstract class PulsarPartitionSplitReaderBase
     protected final Schema<byte[]> schema;
     @Nullable protected final CryptoKeyReader cryptoKeyReader;
 
-    protected final AtomicBoolean wakeup;
-
     protected Consumer<byte[]> pulsarConsumer;
     protected PulsarPartitionSplit registeredSplit;
 
@@ -81,7 +79,6 @@ abstract class PulsarPartitionSplitReaderBase
         this.sourceConfiguration = sourceConfiguration;
         this.schema = schema;
         this.cryptoKeyReader = cryptoKeyReader;
-        this.wakeup = new AtomicBoolean(false);
     }
 
     @Override
@@ -93,18 +90,13 @@ abstract class PulsarPartitionSplitReaderBase
             return builder.build();
         }
 
-        // Set wakeup to false for start consuming.
-        wakeup.compareAndSet(true, false);
-
         StopCursor stopCursor = registeredSplit.getStopCursor();
         String splitId = registeredSplit.splitId();
         Deadline deadline = Deadline.fromNow(sourceConfiguration.getMaxFetchTime());
 
         // Consume messages from pulsar until it was waked up by flink reader.
         for (int messageNum = 0;
-                messageNum < sourceConfiguration.getMaxFetchRecords()
-                        && deadline.hasTimeLeft()
-                        && isNotWakeup();
+                messageNum < sourceConfiguration.getMaxFetchRecords() && deadline.hasTimeLeft();
                 messageNum++) {
             try {
                 Message<byte[]> message = pollMessage(sourceConfiguration.getDefaultFetchTime());
@@ -112,12 +104,17 @@ abstract class PulsarPartitionSplitReaderBase
                     break;
                 }
 
-                builder.add(splitId, message);
+                StopCondition condition = stopCursor.shouldStop(message);
 
-                // Acknowledge message if needed.
-                finishedPollMessage(message);
+                if (condition == StopCondition.CONTINUE || condition == StopCondition.EXACTLY) {
+                    // Deserialize message.
+                    builder.add(splitId, message);
 
-                if (stopCursor.shouldStop(message)) {
+                    // Acknowledge message if needed.
+                    finishedPollMessage(message);
+                }
+
+                if (condition == StopCondition.EXACTLY || condition == StopCondition.TERMINATE) {
                     builder.addFinishedSplit(splitId);
                     break;
                 }
@@ -156,23 +153,27 @@ abstract class PulsarPartitionSplitReaderBase
                 newSplits.size() == 1, "This pulsar split reader only support one split.");
         PulsarPartitionSplit newSplit = newSplits.get(0);
 
+        // Open stop cursor.
+        newSplit.open(pulsarAdmin);
+
+        // Before creating the consumer.
+        beforeCreatingConsumer(newSplit);
+
         // Create pulsar consumer.
         Consumer<byte[]> consumer = createPulsarConsumer(newSplit);
 
-        // Open start & stop cursor.
-        newSplit.open(pulsarAdmin);
-
-        // Start Consumer.
-        startConsumer(newSplit, consumer);
+        // After creating the consumer.
+        afterCreatingConsumer(newSplit, consumer);
 
         LOG.info("Register split {} consumer for current reader.", newSplit);
+
         this.registeredSplit = newSplit;
         this.pulsarConsumer = consumer;
     }
 
     @Override
     public void wakeUp() {
-        wakeup.compareAndSet(false, true);
+        // Nothing to do on this method.
     }
 
     @Override
@@ -188,13 +189,15 @@ abstract class PulsarPartitionSplitReaderBase
 
     protected abstract void finishedPollMessage(Message<?> message);
 
-    protected abstract void startConsumer(PulsarPartitionSplit split, Consumer<?> consumer);
+    protected void beforeCreatingConsumer(PulsarPartitionSplit split) {
+        // Nothing to do by default.
+    }
+
+    protected void afterCreatingConsumer(PulsarPartitionSplit split, Consumer<byte[]> consumer) {
+        // Nothing to do by default.
+    }
 
     // --------------------------- Helper Methods -----------------------------
-
-    protected boolean isNotWakeup() {
-        return !wakeup.get();
-    }
 
     /** Create a specified {@link Consumer} by the given split information. */
     protected Consumer<byte[]> createPulsarConsumer(PulsarPartitionSplit split) {

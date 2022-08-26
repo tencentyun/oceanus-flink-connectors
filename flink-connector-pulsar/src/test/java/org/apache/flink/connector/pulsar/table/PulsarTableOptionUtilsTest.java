@@ -24,7 +24,7 @@ import org.apache.flink.connector.pulsar.sink.writer.router.TopicRoutingMode;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.StartCursor;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.StopCursor;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.start.MessageIdStartCursor;
-import org.apache.flink.connector.pulsar.source.enumerator.cursor.start.PublishTimestampStartCursor;
+import org.apache.flink.connector.pulsar.source.enumerator.cursor.start.TimestampStartCursor;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.stop.PublishTimestampStopCursor;
 import org.apache.flink.connector.pulsar.table.testutils.MockTopicRouter;
 import org.apache.flink.table.api.DataTypes;
@@ -187,7 +187,7 @@ public class PulsarTableOptionUtilsTest {
         options.remove(SOURCE_START_FROM_MESSAGE_ID.key());
         options.put(SOURCE_START_FROM_PUBLISH_TIME.key(), "123545");
         startCursor = getStartCursor(Configuration.fromMap(options));
-        assertThat(startCursor).isInstanceOf(PublishTimestampStartCursor.class);
+        assertThat(startCursor).isInstanceOf(TimestampStartCursor.class);
 
         options.put(SOURCE_START_FROM_PUBLISH_TIME.key(), "123545L");
         assertThatExceptionOfType(IllegalArgumentException.class)
@@ -228,7 +228,7 @@ public class PulsarTableOptionUtilsTest {
         final Map<String, String> options = createDefaultOptions();
         options.put(SOURCE_START_FROM_PUBLISH_TIME.key(), "12345");
         StartCursor startCursor = getStartCursor(Configuration.fromMap(options));
-        assertThat(startCursor).isInstanceOf(PublishTimestampStartCursor.class);
+        assertThat(startCursor).isInstanceOf(TimestampStartCursor.class);
 
         options.put(SOURCE_START_FROM_PUBLISH_TIME.key(), "12345L");
         assertThatExceptionOfType(IllegalArgumentException.class)

@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.pulsar.source.enumerator.assigner;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.source.SplitsAssignment;
 import org.apache.flink.connector.pulsar.source.config.SourceConfiguration;
 import org.apache.flink.connector.pulsar.source.enumerator.PulsarSourceEnumState;
@@ -36,11 +37,12 @@ import java.util.Optional;
 import java.util.Set;
 
 /** This assigner is used for {@link SubscriptionType#Shared} subscriptions. */
+@Internal
 public class SharedSplitAssigner implements SplitAssigner {
     private static final long serialVersionUID = 8468503133499402491L;
 
     private final StopCursor stopCursor;
-    private final SourceConfiguration sourceConfiguration;
+    private final boolean enablePartitionDiscovery;
 
     // These fields would be saved into checkpoint.
 
@@ -49,23 +51,12 @@ public class SharedSplitAssigner implements SplitAssigner {
     private final Map<Integer, Set<String>> readerAssignedSplits;
     private boolean initialized;
 
-    // These fields are used as the dynamic initializing record.
-
-    public SharedSplitAssigner(StopCursor stopCursor, SourceConfiguration sourceConfiguration) {
-        this.stopCursor = stopCursor;
-        this.sourceConfiguration = sourceConfiguration;
-        this.appendedPartitions = new HashSet<>();
-        this.sharedPendingPartitionSplits = new HashMap<>();
-        this.readerAssignedSplits = new HashMap<>();
-        this.initialized = false;
-    }
-
     public SharedSplitAssigner(
             StopCursor stopCursor,
             SourceConfiguration sourceConfiguration,
             PulsarSourceEnumState sourceEnumState) {
         this.stopCursor = stopCursor;
-        this.sourceConfiguration = sourceConfiguration;
+        this.enablePartitionDiscovery = sourceConfiguration.isEnablePartitionDiscovery();
         this.appendedPartitions = sourceEnumState.getAppendedPartitions();
         this.sharedPendingPartitionSplits = sourceEnumState.getSharedPendingPartitionSplits();
         this.readerAssignedSplits = sourceEnumState.getReaderAssignedSplits();
@@ -74,12 +65,12 @@ public class SharedSplitAssigner implements SplitAssigner {
 
     @Override
     public List<TopicPartition> registerTopicPartitions(Set<TopicPartition> fetchedPartitions) {
-        List<TopicPartition> newPartitions = new ArrayList<>(fetchedPartitions.size());
+        List<TopicPartition> newPartitions = new ArrayList<>();
 
-        for (TopicPartition fetchedPartition : fetchedPartitions) {
-            if (!appendedPartitions.contains(fetchedPartition)) {
-                newPartitions.add(fetchedPartition);
-                appendedPartitions.add(fetchedPartition);
+        for (TopicPartition partition : fetchedPartitions) {
+            if (!appendedPartitions.contains(partition)) {
+                appendedPartitions.add(partition);
+                newPartitions.add(partition);
             }
         }
 
@@ -92,9 +83,9 @@ public class SharedSplitAssigner implements SplitAssigner {
 
     @Override
     public void addSplitsBack(List<PulsarPartitionSplit> splits, int subtaskId) {
-        Set<PulsarPartitionSplit> pending =
+        Set<PulsarPartitionSplit> pendingPartitionSplits =
                 sharedPendingPartitionSplits.computeIfAbsent(subtaskId, id -> new HashSet<>());
-        pending.addAll(splits);
+        pendingPartitionSplits.addAll(splits);
     }
 
     @Override
@@ -139,7 +130,7 @@ public class SharedSplitAssigner implements SplitAssigner {
         Set<PulsarPartitionSplit> pendingSplits = sharedPendingPartitionSplits.get(reader);
         Set<String> assignedSplits = readerAssignedSplits.get(reader);
 
-        return !sourceConfiguration.isEnablePartitionDiscovery()
+        return !enablePartitionDiscovery
                 && initialized
                 && (pendingSplits == null || pendingSplits.isEmpty())
                 && (assignedSplits != null && assignedSplits.size() == appendedPartitions.size());

@@ -116,7 +116,7 @@ public class PulsarUnorderedPartitionSplitReader extends PulsarPartitionSplitRea
     }
 
     @Override
-    protected void startConsumer(PulsarPartitionSplit split, Consumer<?> consumer) {
+    protected void afterCreatingConsumer(PulsarPartitionSplit split, Consumer<byte[]> consumer) {
         TxnID uncommittedTransactionId = split.getUncommittedTransactionId();
 
         // Abort the uncommitted pulsar transaction.

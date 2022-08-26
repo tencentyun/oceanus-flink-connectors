@@ -20,7 +20,7 @@ package org.apache.flink.connector.pulsar.source.enumerator.cursor;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.start.MessageIdStartCursor;
-import org.apache.flink.connector.pulsar.source.enumerator.cursor.start.PublishTimestampStartCursor;
+import org.apache.flink.connector.pulsar.source.enumerator.cursor.start.TimestampStartCursor;
 
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.SubscriptionType;
@@ -73,7 +73,20 @@ public interface StartCursor extends Serializable {
         return new MessageIdStartCursor(messageId, inclusive);
     }
 
+    /**
+     * This method is designed for seeking message from event time. But Pulsar didn't support
+     * seeking from message time, instead, it would seek the position from publish time. We only
+     * keep this method for backward compatible.
+     *
+     * @deprecated Use {@link #fromPublishTime(long)} instead.
+     */
+    @Deprecated
+    static StartCursor fromMessageTime(long timestamp) {
+        return new TimestampStartCursor(timestamp, true);
+    }
+
+    /** Seek the start position by using message publish time. */
     static StartCursor fromPublishTime(long timestamp) {
-        return new PublishTimestampStartCursor(timestamp);
+        return new TimestampStartCursor(timestamp, true);
     }
 }
