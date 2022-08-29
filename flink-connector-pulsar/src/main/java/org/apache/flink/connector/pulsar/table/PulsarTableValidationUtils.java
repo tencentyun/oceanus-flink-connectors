@@ -134,12 +134,11 @@ public class PulsarTableValidationUtils {
 
     protected static void validateSubscriptionTypeConfigs(ReadableConfig tableOptions) {
         SubscriptionType subscriptionType = tableOptions.get(SOURCE_SUBSCRIPTION_TYPE);
-        if (subscriptionType == SubscriptionType.Failover
-                || subscriptionType == SubscriptionType.Key_Shared) {
+
+        if (subscriptionType == SubscriptionType.Failover) {
             throw new ValidationException(
                     String.format(
-                            "Only %s and %s SubscriptionType is supported. ",
-                            SubscriptionType.Exclusive, SubscriptionType.Shared));
+                            "%s SubscriptionType is not supported. ", SubscriptionType.Failover));
         }
     }
 
@@ -177,6 +176,23 @@ public class PulsarTableValidationUtils {
                     String.format(
                             "Only one of %s and %s can be specified. Detected both of them",
                             SINK_CUSTOM_TOPIC_ROUTER, SINK_TOPIC_ROUTING_MODE));
+        }
+    }
+
+    protected static void validateUpsertModeKeyConstraints(
+            ReadableConfig tableOptions, int[] primaryKeyIndexes) {
+        if (!tableOptions.getOptional(KEY_FIELDS).isPresent()) {
+            throw new ValidationException(
+                    String.format(
+                            "Upsert mode requires key.fields set to the primary key fields, should be set"));
+        }
+
+        if (tableOptions.getOptional(KEY_FIELDS).get().size() == 0
+                || primaryKeyIndexes.length == 0) {
+            throw new ValidationException(
+                    "'upsert-pulsar' require to define a PRIMARY KEY constraint. "
+                            + "The PRIMARY KEY specifies which columns should be read from or write to the Pulsar message key. "
+                            + "The PRIMARY KEY also defines records in the 'upsert-pulsar' table should update or delete on which keys.");
         }
     }
 }

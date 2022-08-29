@@ -69,10 +69,10 @@ import static org.assertj.core.api.Assertions.assertThatNoException;
 @ExtendWith(MiniClusterExtension.class)
 public class PulsarTableITCase extends PulsarTableTestBase {
 
-    private static final String JSON_FORMAT = "json";
-    private static final String AVRO_FORMAT = "avro";
-    private static final String CSV_FORMAT = "csv";
-    private static final String RAW_FORMAT = "raw";
+    protected static final String JSON_FORMAT = "json";
+    protected static final String AVRO_FORMAT = "avro";
+    protected static final String CSV_FORMAT = "csv";
+    protected static final String RAW_FORMAT = "raw";
 
     @ParameterizedTest
     @ValueSource(strings = {JSON_FORMAT, AVRO_FORMAT, CSV_FORMAT})

@@ -51,17 +51,21 @@ public class PulsarTableSerializationSchema implements PulsarSerializationSchema
 
     private final PulsarWritableMetadata writableMetadata;
 
+    private final boolean upsertMode;
+
     public PulsarTableSerializationSchema(
             @Nullable SerializationSchema<RowData> keySerialization,
             RowData.FieldGetter[] keyFieldGetters,
             SerializationSchema<RowData> valueSerialization,
             RowData.FieldGetter[] valueFieldGetters,
-            PulsarWritableMetadata writableMetadata) {
+            PulsarWritableMetadata writableMetadata,
+            boolean upsertMode) {
         this.keySerialization = keySerialization;
         this.keyFieldGetters = checkNotNull(keyFieldGetters);
         this.valueSerialization = checkNotNull(valueSerialization);
         this.valueFieldGetters = checkNotNull(valueFieldGetters);
         this.writableMetadata = checkNotNull(writableMetadata);
+        this.upsertMode = upsertMode;
     }
 
     @Override
@@ -79,16 +83,31 @@ public class PulsarTableSerializationSchema implements PulsarSerializationSchema
         PulsarMessageBuilder<byte[]> messageBuilder = new PulsarMessageBuilder<>();
 
         final RowKind kind = consumedRow.getRowKind();
-        final RowData valueRow = createProjectedRow(consumedRow, kind, valueFieldGetters);
+        final byte[] serializedData;
+        if (upsertMode) {
+            if (kind == RowKind.DELETE || kind == RowKind.UPDATE_BEFORE) {
+                // transform the message as the tombstone message
+                serializedData = null;
+            } else {
+                // make the message to be INSERT to be compliant with the INSERT-ONLY format
+                final RowData valueRow = createProjectedRow(consumedRow, kind, valueFieldGetters);
+                valueRow.setRowKind(RowKind.INSERT);
+                serializedData = valueSerialization.serialize(valueRow);
+            }
+        } else {
+            final RowData valueRow = createProjectedRow(consumedRow, kind, valueFieldGetters);
+            serializedData = valueSerialization.serialize(valueRow);
+        }
 
+        // apply metadata
         writableMetadata.applyWritableMetadataInMessage(consumedRow, messageBuilder);
 
+        // get key row data
         if (keySerialization != null) {
             final RowData keyRow = createProjectedRow(consumedRow, RowKind.INSERT, keyFieldGetters);
             messageBuilder.keyBytes(keySerialization.serialize(keyRow));
         }
 
-        byte[] serializedData = valueSerialization.serialize(valueRow);
         messageBuilder.value(Schema.BYTES, serializedData);
         return messageBuilder.build();
     }

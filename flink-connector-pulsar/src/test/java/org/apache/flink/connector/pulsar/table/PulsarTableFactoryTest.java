@@ -62,6 +62,7 @@ import java.util.Properties;
 import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_ADMIN_URL;
 import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_SERVICE_URL;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_SUBSCRIPTION_NAME;
+import static org.apache.flink.connector.pulsar.table.PulsarTableFactory.UPSERT_DISABLED;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.ADMIN_URL;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.KEY_FIELDS;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.KEY_FORMAT;
@@ -160,12 +161,14 @@ public class PulsarTableFactoryTest {
                         null,
                         new int[0],
                         valueDecodingFormat,
-                        new int[] {0, 1, 2});
+                        new int[] {0, 1, 2},
+                        UPSERT_DISABLED);
 
         final PulsarTableSource expectedPulsarSource =
                 new PulsarTableSource(
                         deserializationSchemaFactory,
                         valueDecodingFormat,
+                        valueDecodingFormat.getChangelogMode(),
                         Lists.list(TEST_TOPIC),
                         EXPECTED_PULSAR_SOURCE_PROPERTIES,
                         StartCursor.earliest(),
@@ -206,12 +209,14 @@ public class PulsarTableFactoryTest {
                         keyDecodingFormat,
                         new int[] {0},
                         valueDecodingFormat,
-                        new int[] {1, 2});
+                        new int[] {1, 2},
+                        UPSERT_DISABLED);
 
         final PulsarTableSource expectedPulsarSource =
                 new PulsarTableSource(
                         deserializationSchemaFactory,
                         valueDecodingFormat,
+                        valueDecodingFormat.getChangelogMode(),
                         Lists.list(TEST_TOPIC),
                         EXPECTED_PULSAR_SOURCE_PROPERTIES,
                         StartCursor.earliest(),
@@ -260,12 +265,14 @@ public class PulsarTableFactoryTest {
                         expectedKeyFormat,
                         new int[] {0},
                         expectedValueFormat,
-                        new int[] {1});
+                        new int[] {1},
+                        UPSERT_DISABLED);
 
         final PulsarTableSource expectedPulsarSource =
                 new PulsarTableSource(
                         deserializationSchemaFactory,
                         expectedValueFormat,
+                        expectedValueFormat.getChangelogMode(),
                         Lists.list(TEST_TOPIC),
                         EXPECTED_PULSAR_SOURCE_PROPERTIES,
                         StartCursor.earliest(),
@@ -294,7 +301,8 @@ public class PulsarTableFactoryTest {
                         null,
                         new int[0],
                         valueEncodingFormat,
-                        new int[] {0, 1, 2});
+                        new int[] {0, 1, 2},
+                        UPSERT_DISABLED);
 
         final PulsarTableSink expectedPulsarTableSink =
                 new PulsarTableSink(
@@ -343,7 +351,8 @@ public class PulsarTableFactoryTest {
                         keyEncodingFormat,
                         new int[] {0},
                         valueEncodingFormat,
-                        new int[] {1, 2});
+                        new int[] {1, 2},
+                        UPSERT_DISABLED);
 
         final PulsarTableSink expectedPulsarTableSink =
                 new PulsarTableSink(

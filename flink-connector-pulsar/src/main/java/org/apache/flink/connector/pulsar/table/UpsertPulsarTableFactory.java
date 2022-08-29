@@ -21,6 +21,7 @@ package org.apache.flink.connector.pulsar.table;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.connector.base.DeliveryGuarantee;
 import org.apache.flink.connector.pulsar.common.config.PulsarOptions;
@@ -44,6 +45,7 @@ import org.apache.flink.table.factories.DynamicTableSinkFactory;
 import org.apache.flink.table.factories.DynamicTableSourceFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.types.RowKind;
 
 import org.apache.pulsar.client.api.SubscriptionType;
 
@@ -64,10 +66,8 @@ import static org.apache.flink.connector.pulsar.table.PulsarTableOptionUtils.get
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptionUtils.getPulsarProperties;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptionUtils.getStartCursor;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptionUtils.getStopCursor;
-import static org.apache.flink.connector.pulsar.table.PulsarTableOptionUtils.getSubscriptionType;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptionUtils.getTopicListFromOptions;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptionUtils.getTopicRouter;
-import static org.apache.flink.connector.pulsar.table.PulsarTableOptionUtils.getTopicRoutingMode;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptionUtils.getValueDecodingFormat;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptionUtils.getValueEncodingFormat;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.ADMIN_URL;
@@ -75,37 +75,35 @@ import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.EXPLICI
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.KEY_FIELDS;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.KEY_FORMAT;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.SERVICE_URL;
-import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.SINK_CUSTOM_TOPIC_ROUTER;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.SINK_MESSAGE_DELAY_INTERVAL;
-import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.SINK_TOPIC_ROUTING_MODE;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.SOURCE_START_FROM_MESSAGE_ID;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.SOURCE_START_FROM_PUBLISH_TIME;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.SOURCE_STOP_AFTER_MESSAGE_ID;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.SOURCE_STOP_AT_MESSAGE_ID;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.SOURCE_STOP_AT_PUBLISH_TIME;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.SOURCE_SUBSCRIPTION_NAME;
-import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.SOURCE_SUBSCRIPTION_TYPE;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.TOPICS;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.VALUE_FORMAT;
-import static org.apache.flink.connector.pulsar.table.PulsarTableValidationUtils.validatePrimaryKeyConstraints;
 import static org.apache.flink.connector.pulsar.table.PulsarTableValidationUtils.validateTableSinkOptions;
 import static org.apache.flink.connector.pulsar.table.PulsarTableValidationUtils.validateTableSourceOptions;
+import static org.apache.flink.connector.pulsar.table.PulsarTableValidationUtils.validateUpsertModeKeyConstraints;
 import static org.apache.flink.table.factories.FactoryUtil.SINK_PARALLELISM;
 import static org.apache.pulsar.shade.org.apache.commons.lang3.RandomStringUtils.randomAlphabetic;
 
 /**
- * Factory for creating {@link DynamicTableSource} and {@link DynamicTableSink}.
+ * Factory for creating {@link DynamicTableSource} and {@link DynamicTableSink} for upsert-pulsar.
  *
- * <p>The main role of this class is to retrieve config options and validate options from config and
- * the table schema. It also sets default values if a config option is not present.
+ * <p>The major difference between this factory and {@link PulsarTableFactory} is the primary key
+ * options are overridden in this factory.
  */
-public class PulsarTableFactory implements DynamicTableSourceFactory, DynamicTableSinkFactory {
+public class UpsertPulsarTableFactory
+        implements DynamicTableSourceFactory, DynamicTableSinkFactory {
 
-    public static final String IDENTIFIER = "pulsar";
+    public static final String IDENTIFIER = "upsert-pulsar";
 
-    public static final String DEFAULT_SUBSCRIPTION_NAME_PREFIX = "flink-sql-connector-pulsar-";
+    public static final String DEFAULT_SUBSCRIPTION_NAME_PREFIX = "flink-upsert-pulsar-";
 
-    public static final boolean UPSERT_DISABLED = false;
+    public static final boolean UPSERT_ENABLED = true;
 
     @Override
     public DynamicTableSource createDynamicTableSource(Context context) {
@@ -127,16 +125,10 @@ public class PulsarTableFactory implements DynamicTableSourceFactory, DynamicTab
                 PulsarSinkOptions.PRODUCER_CONFIG_PREFIX,
                 PulsarSinkOptions.SINK_CONFIG_PREFIX);
 
-        validatePrimaryKeyConstraints(
-                context.getObjectIdentifier(), context.getPrimaryKeyIndexes(), helper);
-
-        validateTableSourceOptions(tableOptions);
-
         // Retrieve configs
         final List<String> topics = getTopicListFromOptions(tableOptions);
         final StartCursor startCursor = getStartCursor(tableOptions);
         final StopCursor stopCursor = getStopCursor(tableOptions);
-        final SubscriptionType subscriptionType = getSubscriptionType(tableOptions);
 
         // Forward source configs
         final Properties properties = getPulsarProperties(tableOptions);
@@ -152,6 +144,10 @@ public class PulsarTableFactory implements DynamicTableSourceFactory, DynamicTab
         // and projections and create a schema factory based on such information.
         final DataType physicalDataType = context.getPhysicalRowDataType();
 
+        overrideKeyFieldOptionsForUpsertMode((Configuration) tableOptions, context);
+        validateUpsertModeKeyConstraints(tableOptions, context.getPrimaryKeyIndexes());
+        validateTableSourceOptions(tableOptions);
+
         final int[] valueProjection = createValueFormatProjection(tableOptions, physicalDataType);
         final int[] keyProjection = createKeyFormatProjection(tableOptions, physicalDataType);
 
@@ -162,13 +158,18 @@ public class PulsarTableFactory implements DynamicTableSourceFactory, DynamicTab
                         keyProjection,
                         valueDecodingFormat,
                         valueProjection,
-                        UPSERT_DISABLED);
+                        UPSERT_ENABLED);
 
         // Set default values for configuration not exposed to user.
         final DecodingFormat<DeserializationSchema<RowData>> decodingFormatForMetadataPushdown =
                 valueDecodingFormat;
-        final ChangelogMode changelogMode = decodingFormatForMetadataPushdown.getChangelogMode();
-
+        final ChangelogMode changelogMode =
+                ChangelogMode.newBuilder()
+                        .addContainedKind(RowKind.UPDATE_AFTER)
+                        .addContainedKind(RowKind.DELETE)
+                        .build();
+        // TODO exclusive, why using exclusive will fail the pipeline
+        final SubscriptionType subscriptionType = SubscriptionType.Key_Shared;
         return new PulsarTableSource(
                 deserializationSchemaFactory,
                 decodingFormatForMetadataPushdown,
@@ -200,17 +201,11 @@ public class PulsarTableFactory implements DynamicTableSourceFactory, DynamicTab
                 PulsarSinkOptions.PRODUCER_CONFIG_PREFIX,
                 PulsarSinkOptions.SINK_CONFIG_PREFIX);
 
-        validatePrimaryKeyConstraints(
-                context.getObjectIdentifier(), context.getPrimaryKeyIndexes(), helper);
-
-        validateTableSinkOptions(tableOptions);
-
         // Retrieve configs
         final TopicRouter<RowData> topicRouter =
                 getTopicRouter(tableOptions, context.getClassLoader());
-        final TopicRoutingMode topicRoutingMode = getTopicRoutingMode(tableOptions);
-        final long messageDelayMillis = getMessageDelayMillis(tableOptions);
 
+        final long messageDelayMillis = getMessageDelayMillis(tableOptions);
         final List<String> topics = getTopicListFromOptions(tableOptions);
 
         // Forward sink configs
@@ -220,6 +215,12 @@ public class PulsarTableFactory implements DynamicTableSourceFactory, DynamicTab
 
         // Retrieve physical DataType (not including computed or metadata fields)
         final DataType physicalDataType = context.getPhysicalRowDataType();
+
+        // retrieve primary key and replace key.fields
+        overrideKeyFieldOptionsForUpsertMode((Configuration) tableOptions, context);
+        validateUpsertModeKeyConstraints(tableOptions, context.getPrimaryKeyIndexes());
+        validateTableSinkOptions(tableOptions);
+
         final int[] keyProjection = createKeyFormatProjection(tableOptions, physicalDataType);
         final int[] valueProjection = createValueFormatProjection(tableOptions, physicalDataType);
 
@@ -230,11 +231,18 @@ public class PulsarTableFactory implements DynamicTableSourceFactory, DynamicTab
                         keyProjection,
                         valueEncodingFormat,
                         valueProjection,
-                        UPSERT_DISABLED);
+                        UPSERT_ENABLED);
 
         // Set default values for configuration not exposed to user.
         final DeliveryGuarantee deliveryGuarantee = DeliveryGuarantee.AT_LEAST_ONCE;
-        final ChangelogMode changelogMode = valueEncodingFormat.getChangelogMode();
+        final ChangelogMode changelogMode =
+                ChangelogMode.newBuilder()
+                        .addContainedKind(RowKind.INSERT)
+                        .addContainedKind(RowKind.UPDATE_AFTER)
+                        .addContainedKind(RowKind.DELETE)
+                        .build();
+        // upsert mode only supports message_key_hash
+        final TopicRoutingMode topicRoutingMode = TopicRoutingMode.MESSAGE_KEY_HASH;
 
         return new PulsarTableSink(
                 serializationSchemaFactory,
@@ -263,18 +271,14 @@ public class PulsarTableFactory implements DynamicTableSourceFactory, DynamicTab
                         FactoryUtil.FORMAT,
                         VALUE_FORMAT,
                         SOURCE_SUBSCRIPTION_NAME,
-                        SOURCE_SUBSCRIPTION_TYPE,
                         SOURCE_START_FROM_MESSAGE_ID,
                         SOURCE_START_FROM_PUBLISH_TIME,
                         SOURCE_STOP_AT_MESSAGE_ID,
                         SOURCE_STOP_AFTER_MESSAGE_ID,
                         SOURCE_STOP_AT_PUBLISH_TIME,
-                        SINK_CUSTOM_TOPIC_ROUTER,
-                        SINK_TOPIC_ROUTING_MODE,
                         SINK_MESSAGE_DELAY_INTERVAL,
                         SINK_PARALLELISM,
                         KEY_FORMAT,
-                        KEY_FIELDS,
                         EXPLICIT)
                 .collect(Collectors.toSet());
     }
@@ -290,16 +294,20 @@ public class PulsarTableFactory implements DynamicTableSourceFactory, DynamicTab
                         TOPICS,
                         ADMIN_URL,
                         SERVICE_URL,
-                        SOURCE_SUBSCRIPTION_TYPE,
                         SOURCE_SUBSCRIPTION_NAME,
                         SOURCE_START_FROM_MESSAGE_ID,
                         SOURCE_START_FROM_PUBLISH_TIME,
                         SOURCE_STOP_AT_MESSAGE_ID,
                         SOURCE_STOP_AFTER_MESSAGE_ID,
                         SOURCE_STOP_AT_PUBLISH_TIME,
-                        SINK_CUSTOM_TOPIC_ROUTER,
-                        SINK_TOPIC_ROUTING_MODE,
                         SINK_MESSAGE_DELAY_INTERVAL)
                 .collect(Collectors.toSet());
+    }
+
+    private void overrideKeyFieldOptionsForUpsertMode(Configuration tableOptions, Context context) {
+        // override key fields
+        List<String> keyFields =
+                context.getCatalogTable().getResolvedSchema().getPrimaryKey().get().getColumns();
+        tableOptions.set(KEY_FIELDS, keyFields);
     }
 }

@@ -58,12 +58,14 @@ public abstract class PulsarTableTestBase {
         return PulsarRuntime.container();
     }
 
+    private static final int DEFAULT_PARALLELISM = 1;
+
     @BeforeAll
     public void beforeAll() {
         pulsar.startUp();
         // run env
         env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setParallelism(1);
+        env.setParallelism(DEFAULT_PARALLELISM);
         env.getConfig().setRestartStrategy(RestartStrategies.noRestart());
         tableEnv = StreamTableEnvironment.create(env);
         tableEnv.getConfig()

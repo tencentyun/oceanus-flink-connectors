@@ -67,6 +67,8 @@ public class PulsarTableSource implements ScanTableSource, SupportsReadingMetada
      */
     private final DecodingFormat<DeserializationSchema<RowData>> decodingFormatForReadingMetadata;
 
+    private final ChangelogMode changelogMode;
+
     // --------------------------------------------------------------------------------------------
     // PulsarSource needed attributes
     // --------------------------------------------------------------------------------------------
@@ -84,6 +86,7 @@ public class PulsarTableSource implements ScanTableSource, SupportsReadingMetada
     public PulsarTableSource(
             PulsarTableDeserializationSchemaFactory deserializationSchemaFactory,
             DecodingFormat<DeserializationSchema<RowData>> decodingFormatForReadingMetadata,
+            ChangelogMode changelogMode,
             List<String> topics,
             Properties properties,
             StartCursor startCursor,
@@ -92,6 +95,7 @@ public class PulsarTableSource implements ScanTableSource, SupportsReadingMetada
         // Format attributes
         this.deserializationSchemaFactory = checkNotNull(deserializationSchemaFactory);
         this.decodingFormatForReadingMetadata = checkNotNull(decodingFormatForReadingMetadata);
+        this.changelogMode = changelogMode;
         // DataStream connector attributes
         this.topics = topics;
         this.properties = checkNotNull(properties);
@@ -102,7 +106,7 @@ public class PulsarTableSource implements ScanTableSource, SupportsReadingMetada
 
     @Override
     public ChangelogMode getChangelogMode() {
-        return decodingFormatForReadingMetadata.getChangelogMode();
+        return changelogMode;
     }
 
     @Override
@@ -180,6 +184,7 @@ public class PulsarTableSource implements ScanTableSource, SupportsReadingMetada
                 new PulsarTableSource(
                         deserializationSchemaFactory,
                         decodingFormatForReadingMetadata,
+                        changelogMode,
                         topics,
                         properties,
                         startCursor,
@@ -201,6 +206,7 @@ public class PulsarTableSource implements ScanTableSource, SupportsReadingMetada
         return Objects.equals(deserializationSchemaFactory, that.deserializationSchemaFactory)
                 && Objects.equals(
                         decodingFormatForReadingMetadata, that.decodingFormatForReadingMetadata)
+                && Objects.equals(changelogMode, that.changelogMode)
                 && Objects.equals(topics, that.topics)
                 && Objects.equals(properties, that.properties)
                 && Objects.equals(startCursor, that.startCursor)
@@ -213,6 +219,7 @@ public class PulsarTableSource implements ScanTableSource, SupportsReadingMetada
         return Objects.hash(
                 deserializationSchemaFactory,
                 decodingFormatForReadingMetadata,
+                changelogMode,
                 topics,
                 properties,
                 startCursor,

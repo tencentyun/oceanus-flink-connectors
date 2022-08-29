@@ -52,18 +52,22 @@ public class PulsarTableSerializationSchemaFactory {
     /** Metadata that is appended at the end of a physical sink row. */
     private List<String> writableMetadataKeys;
 
+    private final boolean upsertMode;
+
     public PulsarTableSerializationSchemaFactory(
             DataType physicalDataType,
             @Nullable EncodingFormat<SerializationSchema<RowData>> keyEncodingFormat,
             int[] keyProjection,
             EncodingFormat<SerializationSchema<RowData>> valueEncodingFormat,
-            int[] valueProjection) {
+            int[] valueProjection,
+            boolean upsertMode) {
         this.physicalDataType = checkNotNull(physicalDataType);
         this.keyEncodingFormat = keyEncodingFormat;
         this.keyProjection = checkNotNull(keyProjection);
         this.valueEncodingFormat = checkNotNull(valueEncodingFormat);
         this.valueProjection = checkNotNull(valueProjection);
         this.writableMetadataKeys = Collections.emptyList();
+        this.upsertMode = upsertMode;
     }
 
     public PulsarSerializationSchema<RowData> createPulsarSerializationSchema(
@@ -89,7 +93,8 @@ public class PulsarTableSerializationSchemaFactory {
                 keyFieldGetters,
                 valueSerialization,
                 valueFieldGetters,
-                writableMetadata);
+                writableMetadata,
+                upsertMode);
     }
 
     private @Nullable SerializationSchema<RowData> createSerialization(
@@ -135,7 +140,8 @@ public class PulsarTableSerializationSchemaFactory {
                 && Arrays.equals(keyProjection, that.keyProjection)
                 && Objects.equals(valueEncodingFormat, that.valueEncodingFormat)
                 && Arrays.equals(valueProjection, that.valueProjection)
-                && Objects.equals(writableMetadataKeys, that.writableMetadataKeys);
+                && Objects.equals(writableMetadataKeys, that.writableMetadataKeys)
+                && Objects.equals(upsertMode, that.upsertMode);
     }
 
     @Override
@@ -145,7 +151,8 @@ public class PulsarTableSerializationSchemaFactory {
                         physicalDataType,
                         keyEncodingFormat,
                         valueEncodingFormat,
-                        writableMetadataKeys);
+                        writableMetadataKeys,
+                        upsertMode);
         result = 31 * result + Arrays.hashCode(keyProjection);
         result = 31 * result + Arrays.hashCode(valueProjection);
         return result;

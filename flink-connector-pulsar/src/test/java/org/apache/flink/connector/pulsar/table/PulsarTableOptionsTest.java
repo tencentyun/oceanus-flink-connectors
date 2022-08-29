@@ -156,13 +156,11 @@ public class PulsarTableOptionsTest extends PulsarTableTestBase {
     void invalidUnsupportedSubscriptionType() {
         final String topicName = randomTopicName();
         Map<String, String> testConfigs = testConfigWithTopicAndFormat(topicName);
-        testConfigs.put(SOURCE_SUBSCRIPTION_TYPE.key(), "Key_Shared");
+        testConfigs.put(SOURCE_SUBSCRIPTION_TYPE.key(), "Failover");
         runSql(topicName, createTestConfig(testConfigs));
         runSinkAndExpectSucceed(topicName);
         runSourceAndExpectException(
-                topicName,
-                new ValidationException(
-                        "Only Exclusive and Shared SubscriptionType is supported. "));
+                topicName, new ValidationException("Failover SubscriptionType is not supported. "));
     }
 
     @Test

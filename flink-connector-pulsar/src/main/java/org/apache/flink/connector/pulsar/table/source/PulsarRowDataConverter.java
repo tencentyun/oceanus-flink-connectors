@@ -46,15 +46,19 @@ public class PulsarRowDataConverter implements Serializable {
 
     private final PulsarReadableMetadata readableMetadata;
 
+    private final boolean upsertMode;
+
     public PulsarRowDataConverter(
             int physicalArity,
             int[] keyProjection,
             int[] valueProjection,
-            PulsarReadableMetadata readableMetadata) {
+            PulsarReadableMetadata readableMetadata,
+            boolean upsertMode) {
         this.physicalArity = physicalArity;
         this.keyProjection = keyProjection;
         this.valueProjection = valueProjection;
         this.readableMetadata = readableMetadata;
+        this.upsertMode = upsertMode;
     }
 
     public void projectToProducedRowAndCollect(
@@ -80,6 +84,13 @@ public class PulsarRowDataConverter implements Serializable {
         }
     }
 
+    public void projectToRowWithNullValueRow(
+            Message<?> message, List<RowData> keyRowDataList, Collector<RowData> collector) {
+        for (RowData keyRow : keyRowDataList) {
+            emitRow((GenericRowData) keyRow, null, collector, message);
+        }
+    }
+
     private void emitRow(
             @Nullable GenericRowData physicalKeyRow,
             @Nullable GenericRowData physicalValueRow,
@@ -88,9 +99,14 @@ public class PulsarRowDataConverter implements Serializable {
 
         final RowKind rowKind;
         if (physicalValueRow == null) {
-            throw new DeserializationException(
-                    "Invalid null value received in non-upsert mode. Could not to set row kind for output record."
-                            + "upsert mode is not supported yet.");
+            if (upsertMode) {
+                rowKind = RowKind.DELETE;
+            } else {
+                throw new DeserializationException(
+                        "Invalid null value received in non-upsert mode. Could not to set row kind for output record."
+                                + "upsert mode is not supported yet.");
+            }
+
         } else {
             rowKind = physicalValueRow.getRowKind();
         }

@@ -18,14 +18,27 @@
 
 package org.apache.flink.connector.pulsar.table.testutils;
 
+import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableResult;
+import org.apache.flink.table.planner.factories.TestValuesTableFactory;
+import org.apache.flink.table.utils.TableTestMatchers;
 import org.apache.flink.types.Row;
+import org.apache.flink.types.RowKind;
 import org.apache.flink.util.CloseableIterator;
 
+import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 
 /** Util class for verify testing results. */
 public class PulsarTableTestUtils {
@@ -48,5 +61,38 @@ public class PulsarTableTestUtils {
                         });
 
         return collectedRows;
+    }
+
+    public static void comparedWithKeyAndOrder(
+            Map<Row, List<Row>> expectedData, List<Row> actual, int[] keyLoc) {
+        Map<Row, LinkedList<Row>> actualData = new HashMap<>();
+        for (Row row : actual) {
+            Row key = Row.project(row, keyLoc);
+            // ignore row kind
+            key.setKind(RowKind.INSERT);
+            actualData.computeIfAbsent(key, k -> new LinkedList<>()).add(row);
+        }
+        // compare key first
+        assertEquals("Actual result: " + actual, expectedData.size(), actualData.size());
+        // compare by value
+        for (Row key : expectedData.keySet()) {
+            assertThat(
+                    actualData.get(key),
+                    TableTestMatchers.deepEqualTo(expectedData.get(key), false));
+        }
+    }
+
+    public static void waitingExpectedResults(
+            String sinkName, List<String> expected, Duration timeout)
+            throws InterruptedException, TimeoutException {
+        Collections.sort(expected);
+        CommonTestUtils.waitUtil(
+                () -> {
+                    List<String> actual = TestValuesTableFactory.getResults(sinkName);
+                    Collections.sort(actual);
+                    return expected.equals(actual);
+                },
+                timeout,
+                "Can not get the expected result.");
     }
 }

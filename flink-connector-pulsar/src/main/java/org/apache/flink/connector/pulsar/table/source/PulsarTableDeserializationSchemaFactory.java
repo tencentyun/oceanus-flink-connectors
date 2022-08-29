@@ -83,12 +83,15 @@ public class PulsarTableDeserializationSchemaFactory implements Serializable {
 
     private List<String> connectorMetadataKeys;
 
+    private final boolean upsertMode;
+
     public PulsarTableDeserializationSchemaFactory(
             DataType physicalDataType,
             @Nullable DecodingFormat<DeserializationSchema<RowData>> keyDecodingFormat,
             int[] keyProjection,
             DecodingFormat<DeserializationSchema<RowData>> valueDecodingFormat,
-            int[] valueProjection) {
+            int[] valueProjection,
+            boolean upsertMode) {
         this.physicalDataType =
                 checkNotNull(physicalDataType, "field physicalDataType must not be null.");
         this.keyDecodingFormat = keyDecodingFormat;
@@ -100,6 +103,7 @@ public class PulsarTableDeserializationSchemaFactory implements Serializable {
 
         this.producedDataType = physicalDataType;
         this.connectorMetadataKeys = Collections.emptyList();
+        this.upsertMode = upsertMode;
     }
 
     private @Nullable DeserializationSchema<RowData> createDeserialization(
@@ -143,10 +147,15 @@ public class PulsarTableDeserializationSchemaFactory implements Serializable {
                         physicalPlusFormatMetadataArity,
                         keyProjection,
                         physicalValuePlusFormatMetadataProjection,
-                        readableMetadata);
+                        readableMetadata,
+                        upsertMode);
 
         return new PulsarTableDeserializationSchema(
-                keyDeserialization, valueDeserialization, producedTypeInfo, rowDataConverter);
+                keyDeserialization,
+                valueDeserialization,
+                producedTypeInfo,
+                rowDataConverter,
+                upsertMode);
     }
 
     public void setProducedDataType(DataType producedDataType) {
@@ -185,7 +194,8 @@ public class PulsarTableDeserializationSchemaFactory implements Serializable {
                 && Objects.equals(valueDecodingFormat, that.valueDecodingFormat)
                 && Arrays.equals(valueProjection, that.valueProjection)
                 && Objects.equals(producedDataType, that.producedDataType)
-                && Objects.equals(connectorMetadataKeys, that.connectorMetadataKeys);
+                && Objects.equals(connectorMetadataKeys, that.connectorMetadataKeys)
+                && Objects.equals(upsertMode, that.upsertMode);
     }
 
     @Override
@@ -196,7 +206,8 @@ public class PulsarTableDeserializationSchemaFactory implements Serializable {
                         keyDecodingFormat,
                         valueDecodingFormat,
                         producedDataType,
-                        connectorMetadataKeys);
+                        connectorMetadataKeys,
+                        upsertMode);
         result = 31 * result + Arrays.hashCode(keyProjection);
         result = 31 * result + Arrays.hashCode(valueProjection);
         return result;

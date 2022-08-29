@@ -58,15 +58,19 @@ public class PulsarTableDeserializationSchema implements PulsarDeserializationSc
 
     private final PulsarRowDataConverter rowDataConverter;
 
+    private final boolean upsertMode;
+
     public PulsarTableDeserializationSchema(
             @Nullable DeserializationSchema<RowData> keyDeserialization,
             DeserializationSchema<RowData> valueDeserialization,
             TypeInformation<RowData> producedTypeInfo,
-            PulsarRowDataConverter rowDataConverter) {
+            PulsarRowDataConverter rowDataConverter,
+            boolean upsertMode) {
         this.keyDeserialization = keyDeserialization;
         this.valueDeserialization = checkNotNull(valueDeserialization);
         this.rowDataConverter = checkNotNull(rowDataConverter);
         this.producedTypeInfo = checkNotNull(producedTypeInfo);
+        this.upsertMode = upsertMode;
     }
 
     @Override
@@ -82,15 +86,23 @@ public class PulsarTableDeserializationSchema implements PulsarDeserializationSc
     @Override
     public void deserialize(Message<byte[]> message, Collector<RowData> collector)
             throws IOException {
-        // Get the value row data
-        List<RowData> valueRowData = new ArrayList<>();
-        valueDeserialization.deserialize(message.getData(), new ListCollector<>(valueRowData));
 
         // Get the key row data
         List<RowData> keyRowData = new ArrayList<>();
         if (keyDeserialization != null) {
             keyDeserialization.deserialize(message.getKeyBytes(), new ListCollector<>(keyRowData));
         }
+
+        // Get the value row data
+        List<RowData> valueRowData = new ArrayList<>();
+
+        if (upsertMode && message.getData().length == 0) {
+            checkNotNull(keyDeserialization, "upsert mode must specify a key format");
+            rowDataConverter.projectToRowWithNullValueRow(message, keyRowData, collector);
+            return;
+        }
+
+        valueDeserialization.deserialize(message.getData(), new ListCollector<>(valueRowData));
 
         rowDataConverter.projectToProducedRowAndCollect(
                 message, keyRowData, valueRowData, collector);

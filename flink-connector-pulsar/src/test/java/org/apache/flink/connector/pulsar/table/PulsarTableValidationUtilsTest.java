@@ -21,7 +21,6 @@ package org.apache.flink.connector.pulsar.table;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.ValidationException;
 
-import org.apache.pulsar.client.api.SubscriptionType;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
@@ -114,12 +113,8 @@ public class PulsarTableValidationUtilsTest extends PulsarTableTestBase {
                 .isThrownBy(() -> validateSubscriptionTypeConfigs(Configuration.fromMap(options)));
 
         options.put(SOURCE_SUBSCRIPTION_TYPE.key(), "Key_Shared");
-        assertThatExceptionOfType(ValidationException.class)
-                .isThrownBy(() -> validateSubscriptionTypeConfigs(Configuration.fromMap(options)))
-                .withMessage(
-                        String.format(
-                                "Only %s and %s SubscriptionType is supported. ",
-                                SubscriptionType.Exclusive, SubscriptionType.Shared));
+        assertThatNoException()
+                .isThrownBy(() -> validateSubscriptionTypeConfigs(Configuration.fromMap(options)));
 
         options.put(SOURCE_SUBSCRIPTION_TYPE.key(), "invalid-subscription");
         assertThatExceptionOfType(IllegalArgumentException.class)
