@@ -27,8 +27,12 @@ import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
@@ -57,11 +61,6 @@ public final class PulsarSchema<T> implements Serializable {
     private transient Schema<T> schema;
     private transient SchemaInfo schemaInfo;
 
-    private String schemaName;
-    private byte[] schemaBytes;
-    private SchemaType schemaType;
-    private Map<String, String> schemaProperties;
-
     /** Create serializable pulsar schema for primitive types. */
     public PulsarSchema(Schema<T> schema) {
         SchemaInfo info = schema.getSchemaInfo();
@@ -78,7 +77,8 @@ public final class PulsarSchema<T> implements Serializable {
         // Primitive type information could be reflected from the schema class.
         Class<?> typeClass = getTemplateType1(schema.getClass());
 
-        setSchemaInfo(encodeClassInfo(info, typeClass));
+        this.schemaInfo = encodeClassInfo(info, typeClass);
+        this.schema = createSchema(schemaInfo);
     }
 
     /**
@@ -94,7 +94,8 @@ public final class PulsarSchema<T> implements Serializable {
                 "Key Value Schema should provide the type classes of key and value");
         validateSchemaInfo(info);
 
-        setSchemaInfo(encodeClassInfo(info, typeClass));
+        this.schemaInfo = encodeClassInfo(info, typeClass);
+        this.schema = createSchema(schemaInfo);
     }
 
     /** Create serializable pulsar schema for key value type. */
@@ -117,37 +118,66 @@ public final class PulsarSchema<T> implements Serializable {
         SchemaInfo encodedInfo =
                 encodeKeyValueSchemaInfo(info.getName(), infoKey, infoValue, encodingType);
 
-        setSchemaInfo(encodeClassInfo(encodedInfo, KeyValue.class));
-    }
-
-    /** Validate the schema for having the required class info. */
-    private void setSchemaInfo(SchemaInfo schemaInfo) {
-        this.schema = createSchema(schemaInfo);
-        this.schemaInfo = schemaInfo;
-
-        this.schemaName = schemaInfo.getName();
-        this.schemaBytes = schemaInfo.getSchema();
-        this.schemaType = schemaInfo.getType();
-        this.schemaProperties = schemaInfo.getProperties();
+        this.schemaInfo = encodeClassInfo(encodedInfo, KeyValue.class);
+        this.schema = createSchema(this.schemaInfo);
     }
 
     public Schema<T> getPulsarSchema() {
-        if (schema == null) {
-            this.schema = createSchema(getSchemaInfo());
-        }
         return schema;
     }
 
     public SchemaInfo getSchemaInfo() {
-        if (schemaInfo == null) {
-            this.schemaInfo =
-                    new SchemaInfoImpl(schemaName, schemaBytes, schemaType, schemaProperties);
-        }
         return schemaInfo;
     }
 
     public Class<T> getRecordClass() {
-        return decodeClassInfo(getSchemaInfo());
+        return decodeClassInfo(schemaInfo);
+    }
+
+    private void writeObject(ObjectOutputStream oos) throws IOException {
+        // Name
+        oos.writeUTF(schemaInfo.getName());
+
+        // Schema
+        byte[] schemaBytes = schemaInfo.getSchema();
+        oos.writeInt(schemaBytes.length);
+        oos.write(schemaBytes);
+
+        // Type
+        SchemaType type = schemaInfo.getType();
+        oos.writeInt(type.getValue());
+
+        // Properties
+        Map<String, String> properties = schemaInfo.getProperties();
+        oos.writeInt(properties.size());
+        for (Map.Entry<String, String> entry : properties.entrySet()) {
+            oos.writeUTF(entry.getKey());
+            oos.writeUTF(entry.getValue());
+        }
+    }
+
+    private void readObject(ObjectInputStream ois) throws ClassNotFoundException, IOException {
+        // Name
+        String name = ois.readUTF();
+
+        // Schema
+        int byteLen = ois.readInt();
+        byte[] schemaBytes = new byte[byteLen];
+        ois.readFully(schemaBytes);
+
+        // Type
+        int typeIdx = ois.readInt();
+        SchemaType type = SchemaType.valueOf(typeIdx);
+
+        // Properties
+        int propSize = ois.readInt();
+        Map<String, String> properties = new HashMap<>(propSize);
+        for (int i = 0; i < propSize; i++) {
+            properties.put(ois.readUTF(), ois.readUTF());
+        }
+
+        this.schemaInfo = new SchemaInfoImpl(name, schemaBytes, type, properties);
+        this.schema = createSchema(schemaInfo);
     }
 
     @Override
@@ -158,21 +188,24 @@ public final class PulsarSchema<T> implements Serializable {
         if (o == null || getClass() != o.getClass()) {
             return false;
         }
-        PulsarSchema<?> that = ((PulsarSchema<?>) o);
+        SchemaInfo that = ((PulsarSchema<?>) o).getPulsarSchema().getSchemaInfo();
 
-        return Objects.equals(schemaType, that.schemaType)
-                && Arrays.equals(schemaBytes, that.schemaBytes)
-                && Objects.equals(schemaProperties, that.schemaProperties);
+        return Objects.equals(schemaInfo.getType(), that.getType())
+                && Arrays.equals(schemaInfo.getSchema(), that.getSchema())
+                && Objects.equals(schemaInfo.getProperties(), that.getProperties());
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(schemaType, Arrays.hashCode(schemaBytes), schemaProperties);
+        return Objects.hash(
+                schemaInfo.getType(),
+                Arrays.hashCode(schemaInfo.getSchema()),
+                schemaInfo.getProperties());
     }
 
     @Override
     public String toString() {
-        return getSchemaInfo().toString();
+        return schemaInfo.toString();
     }
 
     /**
