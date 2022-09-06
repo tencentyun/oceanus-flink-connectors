@@ -406,12 +406,45 @@ public class PulsarTableITCase extends PulsarTableTestBase {
 
     @ParameterizedTest
     @MethodSource("provideAvroBasedSchemaData")
-    @Disabled("flink-128")
     void sendMessageToTopicAndReadUsingAvroBasedSchema(
             String format, Schema<TestingUser> schema, TestingUser value) throws Exception {
         final String sourceTopic = "source_topic_" + randomAlphanumeric(3);
         createTestTopic(sourceTopic, 1);
         pulsar.operator().sendMessage(sourceTopic, schema, value);
+
+        String sourceTableName = randomAlphabetic(5);
+        final String createSourceTable =
+                String.format(
+                        "create table %s (\n"
+                                + "  age INT,\n"
+                                + "  name STRING\n"
+                                + ") with (\n"
+                                + "  'connector' = '%s',\n"
+                                + "  'topics' = '%s',\n"
+                                + "  'service-url' = '%s',\n"
+                                + "  'admin-url' = '%s',\n"
+                                + "  'format' = '%s'\n"
+                                + ")",
+                        sourceTableName,
+                        PulsarTableFactory.IDENTIFIER,
+                        sourceTopic,
+                        pulsar.operator().serviceUrl(),
+                        pulsar.operator().adminUrl(),
+                        format);
+
+        tableEnv.executeSql(createSourceTable);
+        final List<Row> result =
+                collectRows(
+                        tableEnv.sqlQuery(String.format("SELECT * FROM %s", sourceTableName)), 1);
+        assertThat(result).containsExactlyInAnyOrder(Row.of(value.getAge(), value.getName()));
+    }
+
+    @ParameterizedTest
+    @MethodSource("provideAvroBasedSchemaData")
+    void writeAndReadUsingAvroBasedSchema(
+            String format, Schema<TestingUser> schema, TestingUser value) throws Exception {
+        final String sourceTopic = "source_topic_" + randomAlphanumeric(3);
+        createTestTopic(sourceTopic, 1);
 
         String sourceTableName = randomAlphabetic(5);
         final String createSourceTable =
@@ -434,6 +467,12 @@ public class PulsarTableITCase extends PulsarTableTestBase {
                         format);
 
         tableEnv.executeSql(createSourceTable);
+        String initialValues =
+                String.format(
+                        "INSERT INTO %s\n" + "VALUES\n" + " ('%s', %s)",
+                        sourceTableName, value.getName(), value.getAge());
+        tableEnv.executeSql(initialValues).await();
+
         final List<Row> result =
                 collectRows(
                         tableEnv.sqlQuery(String.format("SELECT * FROM %s", sourceTableName)), 1);
