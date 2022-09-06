@@ -74,6 +74,9 @@ public class PulsarTableSerializationSchema implements PulsarSerializationSchema
             PulsarSinkContext sinkContext,
             SinkConfiguration sinkConfiguration)
             throws Exception {
+        if (keySerialization != null) {
+            keySerialization.open(initializationContext);
+        }
         valueSerialization.open(initializationContext);
     }
 

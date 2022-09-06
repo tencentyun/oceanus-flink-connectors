@@ -161,7 +161,7 @@ public class PulsarTableITCase extends PulsarTableTestBase {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {JSON_FORMAT, CSV_FORMAT})
+    @ValueSource(strings = {JSON_FORMAT, AVRO_FORMAT, CSV_FORMAT})
     void pulsarSourceSinkWithKeyAndPartialValue(String format) throws Exception {
         // we always use a different topic name for each parameterized topic,
         // in order to make sure the topic can be created.
@@ -443,6 +443,7 @@ public class PulsarTableITCase extends PulsarTableTestBase {
 
     @ParameterizedTest
     @MethodSource("provideAvroBasedSchemaData")
+    @Disabled("flink-128")
     void selectIntoTableUsingAvroBasedSchema(
             String format, Schema<TestingUser> schema, TestingUser value) throws Exception {
         final String sourceTopic = "source_topic_" + randomAlphanumeric(3);
@@ -638,9 +639,7 @@ public class PulsarTableITCase extends PulsarTableTestBase {
 
     private static Stream<Arguments> provideAvroBasedSchemaData() {
         return Stream.of(
-                Arguments.of(JSON_FORMAT, Schema.JSON(TestingUser.class), createRandomUser())
-                //                Arguments.of(AVRO_FORMAT, Schema.AVRO(TestingUser.class),
-                // createRandomUser())
-                );
+                Arguments.of(JSON_FORMAT, Schema.JSON(TestingUser.class), createRandomUser()),
+                Arguments.of(AVRO_FORMAT, Schema.AVRO(TestingUser.class), createRandomUser()));
     }
 }
