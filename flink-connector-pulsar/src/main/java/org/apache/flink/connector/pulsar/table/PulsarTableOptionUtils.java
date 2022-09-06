@@ -66,6 +66,7 @@ import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.SOURCE_
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.TOPICS;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.VALUE_FORMAT;
 import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A util class for getting fields from config options, getting formats and other useful
@@ -86,6 +87,8 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 public class PulsarTableOptionUtils {
 
     private PulsarTableOptionUtils() {}
+
+    public static final String TOPIC_LIST_DELIMITER = ";";
 
     // --------------------------------------------------------------------------------------------
     // Decoding / Encoding and Projection
@@ -184,18 +187,25 @@ public class PulsarTableOptionUtils {
     }
 
     public static Properties getPulsarProperties(ReadableConfig tableOptions) {
-        final Properties pulsarProperties = new Properties();
         final Map<String, String> configs = ((Configuration) tableOptions).toMap();
-        configs.keySet().stream()
-                .filter(key -> key.startsWith("pulsar"))
-                .forEach(key -> pulsarProperties.put(key, configs.get(key)));
-        return pulsarProperties;
+        return getPulsarProperties(configs);
     }
 
     public static Properties getPulsarProperties(Map<String, String> configs) {
+        return getPulsarPropertiesWithPrefix(configs, "pulsar");
+    }
+
+    public static Properties getPulsarPropertiesWithPrefix(
+            ReadableConfig tableOptions, String prefix) {
+        final Map<String, String> configs = ((Configuration) tableOptions).toMap();
+        return getPulsarPropertiesWithPrefix(configs, prefix);
+    }
+
+    public static Properties getPulsarPropertiesWithPrefix(
+            Map<String, String> configs, String prefix) {
         final Properties pulsarProperties = new Properties();
         configs.keySet().stream()
-                .filter(key -> key.startsWith("pulsar"))
+                .filter(key -> key.startsWith(prefix))
                 .forEach(key -> pulsarProperties.put(key, configs.get(key)));
         return pulsarProperties;
     }
@@ -313,5 +323,22 @@ public class PulsarTableOptionUtils {
 
     public static long getMessageDelayMillis(ReadableConfig readableConfig) {
         return readableConfig.get(SINK_MESSAGE_DELAY_INTERVAL).toMillis();
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // Table Topic Name Utils
+    // --------------------------------------------------------------------------------------------
+
+    public static boolean hasMultipleTopics(String topicsConfigString) {
+        checkNotNull(topicsConfigString);
+        String[] topics = topicsConfigString.split(TOPIC_LIST_DELIMITER);
+        return topics.length > 1;
+    }
+
+    public static String getFirstTopic(String topicsConfigString) {
+        checkNotNull(topicsConfigString);
+        String[] topics = topicsConfigString.split(TOPIC_LIST_DELIMITER);
+        checkArgument(topics.length > 0);
+        return topics[0];
     }
 }

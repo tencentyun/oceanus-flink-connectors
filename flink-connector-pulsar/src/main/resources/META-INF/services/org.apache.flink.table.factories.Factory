@@ -16,3 +16,4 @@
 org.apache.flink.connector.pulsar.table.PulsarTableFactory
 org.apache.flink.connector.pulsar.table.UpsertPulsarTableFactory
 org.apache.flink.connector.pulsar.table.catalog.PulsarCatalogFactory
+org.apache.flink.connector.pulsar.table.format.protobufnative.PulsarProtobufNativeFormatFactory

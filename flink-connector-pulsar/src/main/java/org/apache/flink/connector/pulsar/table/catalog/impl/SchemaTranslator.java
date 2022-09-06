@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.pulsar.table.catalog.impl;
 
+import org.apache.flink.connector.pulsar.table.format.protobufnative.PulsarProtobufNativeFormatFactory;
 import org.apache.flink.formats.avro.AvroFormatFactory;
 import org.apache.flink.formats.avro.typeutils.AvroSchemaConverter;
 import org.apache.flink.formats.json.JsonFormatFactory;
@@ -221,6 +222,8 @@ public class SchemaTranslator {
                 formatIdentifier = AvroFormatFactory.IDENTIFIER;
                 break;
             case PROTOBUF_NATIVE:
+                formatIdentifier = PulsarProtobufNativeFormatFactory.IDENTIFIER;
+                break;
             case PROTOBUF:
             case AUTO_CONSUME:
             case AUTO:
