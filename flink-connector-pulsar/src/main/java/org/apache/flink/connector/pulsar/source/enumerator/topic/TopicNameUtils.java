@@ -47,18 +47,15 @@ public final class TopicNameUtils {
             Pattern.compile("pulsar/([^:]+:\\d+)");
     private static final Pattern SLA_NAMESPACE_PATTERN =
             Pattern.compile("sla-monitor" + "/[^/]+/([^:]+:\\d+)");
-    private static final Set<String> SYSTEM_TOPIC_NAMES =
-            ImmutableSet.of(
-                    "__change_events",
-                    "__transaction_buffer_snapshot",
-                    "__pending_ack_state",
-                    "__transaction_pending_ack");
-
+    private static final Set<String> EVENTS_TOPIC_NAMES =
+            ImmutableSet.of("__change_events", "__transaction_buffer_snapshot");
     private static final String TRANSACTION_COORDINATOR_ASSIGN_PREFIX =
             TopicName.get(persistent.value(), SYSTEM_NAMESPACE, "transaction_coordinator_assign")
                     .toString();
     private static final String TRANSACTION_COORDINATOR_LOG_PREFIX =
             TopicName.get(persistent.value(), SYSTEM_NAMESPACE, "__transaction_log_").toString();
+    private static final String PENDING_ACK_STORE_SUFFIX = "__transaction_pending_ack";
+    private static final String PENDING_ACK_STORE_CURSOR_SUFFIX = "__pending_ack_state";
 
     private TopicNameUtils() {
         // No public constructor.
@@ -113,12 +110,12 @@ public final class TopicNameUtils {
 
     /**
      * This method is refactored from {@code BrokerService} in pulsar-broker which is not available
-     * in Pulsar client. We have to put it here and self maintained. Since these topic names would
-     * never be changed for backward compatible, we only need to add new topic names after version
-     * bump.
+     * in the Pulsar client. We have to put it here and self maintained. Since these topic names
+     * would never be changed for backward compatible, we only need to add new topic names after
+     * version bump.
      *
      * @see <a
-     *     href="https://github.com/apache/pulsar/blob/7576c9303513ef8212452ff64a5a53ec7def6a5b/pulsar-broker/src/main/java/org/apache/pulsar/broker/service/BrokerService.java#L2934">BrokerService#isSystemTopic</a>
+     *     href="https://github.com/apache/pulsar/blob/7075a5ce0d4a70f52625ac8c3d0c48894442b72a/pulsar-broker/src/main/java/org/apache/pulsar/broker/service/BrokerService.java#L3024">BrokerService#isSystemTopic</a>
      */
     public static boolean isInternal(String topic) {
         // A topic name instance without partition information.
@@ -131,8 +128,10 @@ public final class TopicNameUtils {
                 || SLA_NAMESPACE_PATTERN.matcher(namespace).matches()
                 || HEARTBEAT_NAMESPACE_PATTERN.matcher(namespace).matches()
                 || HEARTBEAT_NAMESPACE_PATTERN_V2.matcher(namespace).matches()
-                || SYSTEM_TOPIC_NAMES.contains(localName)
+                || EVENTS_TOPIC_NAMES.contains(localName)
                 || topicName.startsWith(TRANSACTION_COORDINATOR_ASSIGN_PREFIX)
-                || topicName.startsWith(TRANSACTION_COORDINATOR_LOG_PREFIX);
+                || topicName.startsWith(TRANSACTION_COORDINATOR_LOG_PREFIX)
+                || localName.endsWith(PENDING_ACK_STORE_SUFFIX)
+                || localName.endsWith(PENDING_ACK_STORE_CURSOR_SUFFIX);
     }
 }

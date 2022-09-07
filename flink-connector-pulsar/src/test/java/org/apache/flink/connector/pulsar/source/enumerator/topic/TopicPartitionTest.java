@@ -37,4 +37,13 @@ class TopicPartitionTest {
         TopicPartition partition1 = new TopicPartition("test-topic", -1, createFullRange());
         assertEquals(partition1.getFullTopicName(), "persistent://public/default/test-topic");
     }
+
+    @Test
+    void directlyCreateTopicWithPartitionedName() {
+        TopicPartition partition = new TopicPartition("test-name-partition-4");
+        assertEquals(
+                partition.getFullTopicName(), "persistent://public/default/test-name-partition-4");
+        assertEquals(partition.getTopic(), "persistent://public/default/test-name");
+        assertEquals(partition.getPartitionId(), 4);
+    }
 }

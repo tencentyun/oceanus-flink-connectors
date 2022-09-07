@@ -415,7 +415,7 @@ under the License.
 								<include>**/testutils/**</include>
 								<include>META-INF/LICENSE</include>
 								<include>META-INF/NOTICE</include>
-								<include>containers/txnStandalone.conf</include>
+								<include>docker/bootstrap.sh</include>
 							</includes>
 						</configuration>
 					</execution>
@@ -439,7 +439,7 @@ under the License.
 								<include>**/testutils/**</include>
 								<include>META-INF/LICENSE</include>
 								<include>META-INF/NOTICE</include>
-								<include>containers/txnStandalone.conf</include>
+								<include>docker/bootstrap.sh</include>
 							</includes>
 						</configuration>
 					</execution>

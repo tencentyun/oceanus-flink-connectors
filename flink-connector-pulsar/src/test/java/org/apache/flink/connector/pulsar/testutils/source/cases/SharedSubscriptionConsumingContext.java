@@ -16,32 +16,34 @@
  * limitations under the License.
  */
 
-package org.apache.flink.connector.pulsar.source.enumerator.cursor.stop;
+package org.apache.flink.connector.pulsar.testutils.source.cases;
 
-import org.apache.flink.connector.pulsar.source.enumerator.cursor.StopCursor;
+import org.apache.flink.connector.pulsar.testutils.PulsarTestEnvironment;
 
-import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.SubscriptionType;
 
-/** A implementation which wouldn't stop forever. */
-public class NeverStopCursor implements StopCursor {
-    private static final long serialVersionUID = -3113601090292771786L;
+/**
+ * A consuming context with {@link SubscriptionType#Shared}, it's almost the same as {@link
+ * MultipleTopicConsumingContext}.
+ */
+public class SharedSubscriptionConsumingContext extends MultipleTopicConsumingContext {
 
-    @Override
-    public StopCondition shouldStop(Message<?> message) {
-        return StopCondition.CONTINUE;
+    public SharedSubscriptionConsumingContext(PulsarTestEnvironment environment) {
+        super(environment);
     }
 
     @Override
-    public boolean equals(Object o) {
-        if (this == o) {
-            return true;
-        }
-
-        return o != null && getClass() == o.getClass();
+    protected String displayName() {
+        return "consuming message with shared subscription";
     }
 
     @Override
-    public int hashCode() {
-        return 31;
+    protected String subscriptionName() {
+        return "flink-shared-subscription-test";
+    }
+
+    @Override
+    protected SubscriptionType subscriptionType() {
+        return SubscriptionType.Shared;
     }
 }

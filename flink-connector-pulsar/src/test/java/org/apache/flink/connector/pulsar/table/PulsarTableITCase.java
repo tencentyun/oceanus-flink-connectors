@@ -300,9 +300,8 @@ public class PulsarTableITCase extends PulsarTableTestBase {
         Map<String, String> properties = new HashMap<>();
         properties.put("key1", "value1");
         properties.put("key2", "value2");
-        try {
-            Producer<String> producer =
-                    pulsar.operator().createProducer(sourceTopic, Schema.STRING);
+        try (Producer<String> producer =
+                pulsar.operator().createProducer(sourceTopic, Schema.STRING)) {
             producer.newMessage().value(value).properties(properties).send();
         } catch (PulsarClientException e) {
             sneakyThrow(e);

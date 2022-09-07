@@ -24,6 +24,7 @@ import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
 
 import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.common.naming.TopicName;
 
 import java.io.Serializable;
 import java.util.Objects;
@@ -68,7 +69,15 @@ public class TopicPartition implements Serializable {
 
     /** Create a top-level topic without partition information. */
     public TopicPartition(String topic) {
-        this(topic, NON_PARTITION_ID);
+        TopicName topicName = TopicName.get(topic);
+        if (topicName.isPartitioned()) {
+            this.topic = topicName.getPartitionedTopicName();
+            this.partitionId = topicName.getPartitionIndex();
+        } else {
+            this.topic = topicName.toString();
+            this.partitionId = NON_PARTITION_ID;
+        }
+        this.range = createFullRange();
     }
 
     /** Create a topic partition without key hash range. */

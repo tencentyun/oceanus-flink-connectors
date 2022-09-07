@@ -67,10 +67,6 @@ public class PulsarContainerRuntime implements PulsarRuntime {
     private boolean boundFlink = false;
     private PulsarRuntimeOperator operator;
 
-    public PulsarContainerRuntime(boolean authEnabled) {
-        // TODO Add authentication support.
-    }
-
     public PulsarContainerRuntime bindWithFlinkContainer(GenericContainer<?> flinkContainer) {
         checkArgument(
                 !started.get(),
