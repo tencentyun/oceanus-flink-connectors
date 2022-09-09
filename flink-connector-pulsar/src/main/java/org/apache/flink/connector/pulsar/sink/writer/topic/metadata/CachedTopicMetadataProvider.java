@@ -19,6 +19,7 @@
 package org.apache.flink.connector.pulsar.sink.writer.topic.metadata;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.connector.pulsar.common.request.PulsarAdminRequest;
 import org.apache.flink.connector.pulsar.sink.config.SinkConfiguration;
 import org.apache.flink.connector.pulsar.sink.writer.topic.TopicExtractor.TopicMetadataProvider;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicMetadata;
@@ -26,9 +27,7 @@ import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicMetadata;
 import org.apache.flink.shaded.guava30.com.google.common.cache.Cache;
 import org.apache.flink.shaded.guava30.com.google.common.cache.CacheBuilder;
 
-import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 
 import java.util.concurrent.TimeUnit;
 
@@ -39,12 +38,12 @@ import java.util.concurrent.TimeUnit;
 @Internal
 public class CachedTopicMetadataProvider implements TopicMetadataProvider {
 
-    private final PulsarAdmin pulsarAdmin;
+    private final PulsarAdminRequest adminRequest;
     private final Cache<String, TopicMetadata> metadataCache;
 
     public CachedTopicMetadataProvider(
-            PulsarAdmin pulsarAdmin, SinkConfiguration sinkConfiguration) {
-        this.pulsarAdmin = pulsarAdmin;
+            PulsarAdminRequest adminRequest, SinkConfiguration sinkConfiguration) {
+        this.adminRequest = adminRequest;
 
         long refreshInterval = sinkConfiguration.getTopicMetadataRefreshInterval();
         if (refreshInterval <= 0) {
@@ -64,8 +63,7 @@ public class CachedTopicMetadataProvider implements TopicMetadataProvider {
         TopicMetadata metadata = metadataCache == null ? null : metadataCache.getIfPresent(topic);
 
         if (metadata == null) {
-            PartitionedTopicMetadata meta = pulsarAdmin.topics().getPartitionedTopicMetadata(topic);
-            metadata = new TopicMetadata(topic, meta.partitions);
+            metadata = adminRequest.getTopicMetadata(topic);
             if (metadataCache != null) {
                 metadataCache.put(topic, metadata);
             }

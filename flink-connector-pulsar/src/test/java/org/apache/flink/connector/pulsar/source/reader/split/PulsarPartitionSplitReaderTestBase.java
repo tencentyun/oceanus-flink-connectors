@@ -22,6 +22,7 @@ import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitsAddition;
+import org.apache.flink.connector.pulsar.common.request.PulsarAdminRequest;
 import org.apache.flink.connector.pulsar.source.config.SourceConfiguration;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.StopCursor;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicPartition;
@@ -30,7 +31,6 @@ import org.apache.flink.connector.pulsar.testutils.PulsarTestSuiteBase;
 import org.apache.flink.connector.pulsar.testutils.extension.TestOrderlinessExtension;
 import org.apache.flink.util.TestLoggerExtension;
 
-import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Schema;
@@ -136,25 +136,16 @@ abstract class PulsarPartitionSplitReaderTestBase extends PulsarTestSuiteBase {
         // Create the subscription and set the start position for this reader.
         // Remember not to use Consumer.seek(startPosition)
         SourceConfiguration sourceConfiguration = reader.sourceConfiguration;
-        PulsarAdmin pulsarAdmin = reader.pulsarAdmin;
+        PulsarAdminRequest adminRequest = reader.adminRequest;
         String subscriptionName = sourceConfiguration.getSubscriptionName();
-        List<String> subscriptions =
-                sneakyAdmin(() -> pulsarAdmin.topics().getSubscriptions(topicName));
-        if (!subscriptions.contains(subscriptionName)) {
-            // If this subscription is not available. Just create it.
-            sneakyAdmin(
-                    () ->
-                            pulsarAdmin
-                                    .topics()
-                                    .createSubscription(
-                                            topicName, subscriptionName, startPosition));
-        } else {
-            // Reset the subscription if this is existed.
-            sneakyAdmin(
-                    () ->
-                            pulsarAdmin
-                                    .topics()
-                                    .resetCursor(topicName, subscriptionName, startPosition));
+
+        boolean create =
+                sneakyAdmin(
+                        () ->
+                                adminRequest.createSubscriptionIfNotExist(
+                                        topicName, subscriptionName, startPosition));
+        if (!create) {
+            sneakyAdmin(() -> adminRequest.resetCursor(topicName, subscriptionName, startPosition));
         }
 
         // Accept the split and start consuming.
@@ -343,17 +334,15 @@ abstract class PulsarPartitionSplitReaderTestBase extends PulsarTestSuiteBase {
 
     /** Create a split reader with max message 1, fetch timeout 1s. */
     private PulsarPartitionSplitReaderBase splitReader(SubscriptionType subscriptionType) {
+        SourceConfiguration sourceConfig = sourceConfig();
+        PulsarAdminRequest adminRequest = new PulsarAdminRequest(operator().admin(), sourceConfig);
+
         if (subscriptionType == SubscriptionType.Failover) {
             return new PulsarOrderedPartitionSplitReader(
-                    operator().client(), operator().admin(), sourceConfig(), Schema.BYTES, null);
+                    operator().client(), adminRequest, sourceConfig, Schema.BYTES, null);
         } else {
             return new PulsarUnorderedPartitionSplitReader(
-                    operator().client(),
-                    operator().admin(),
-                    sourceConfig(),
-                    Schema.BYTES,
-                    null,
-                    null);
+                    operator().client(), adminRequest, sourceConfig, Schema.BYTES, null, null);
         }
     }
 

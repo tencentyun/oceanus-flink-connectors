@@ -20,6 +20,7 @@ package org.apache.flink.connector.pulsar.sink.writer.topic.register;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.operators.ProcessingTimeService;
+import org.apache.flink.connector.pulsar.common.request.PulsarAdminRequest;
 import org.apache.flink.connector.pulsar.sink.config.SinkConfiguration;
 import org.apache.flink.connector.pulsar.sink.writer.topic.TopicRegister;
 import org.apache.flink.connector.pulsar.sink.writer.topic.metadata.NotExistedTopicMetadataProvider;
@@ -28,7 +29,6 @@ import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicMetadata;
 import org.apache.flink.shaded.guava30.com.google.common.base.Objects;
 import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
 
-import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,7 +39,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.apache.flink.connector.pulsar.common.config.PulsarClientFactory.createAdmin;
 import static org.apache.flink.connector.pulsar.common.utils.PulsarExceptionUtils.sneakyAdmin;
 import static org.apache.flink.connector.pulsar.source.enumerator.topic.TopicNameUtils.isPartitioned;
 import static org.apache.flink.connector.pulsar.source.enumerator.topic.TopicNameUtils.topicName;
@@ -62,7 +61,7 @@ public class FixedTopicRegister<IN> implements TopicRegister<IN> {
     private volatile ImmutableList<String> availableTopics;
 
     // Dynamic fields.
-    private transient PulsarAdmin pulsarAdmin;
+    private transient PulsarAdminRequest adminRequest;
     private transient Long topicMetadataRefreshInterval;
     private transient ProcessingTimeService timeService;
     private transient NotExistedTopicMetadataProvider metadataProvider;
@@ -92,10 +91,11 @@ public class FixedTopicRegister<IN> implements TopicRegister<IN> {
         }
 
         // Initialize listener properties.
-        this.pulsarAdmin = createAdmin(sinkConfiguration);
+        this.adminRequest = new PulsarAdminRequest(sinkConfiguration);
         this.topicMetadataRefreshInterval = sinkConfiguration.getTopicMetadataRefreshInterval();
         this.timeService = timeService;
-        this.metadataProvider = new NotExistedTopicMetadataProvider(pulsarAdmin, sinkConfiguration);
+        this.metadataProvider =
+                new NotExistedTopicMetadataProvider(adminRequest, sinkConfiguration);
 
         // Initialize the topic metadata. Quit if fail to connect to Pulsar.
         sneakyAdmin(this::updateTopicMetadata);
@@ -132,8 +132,8 @@ public class FixedTopicRegister<IN> implements TopicRegister<IN> {
 
     @Override
     public void close() throws IOException {
-        if (pulsarAdmin != null) {
-            pulsarAdmin.close();
+        if (adminRequest != null) {
+            adminRequest.close();
         }
     }
 

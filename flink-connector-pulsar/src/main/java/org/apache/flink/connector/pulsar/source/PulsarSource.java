@@ -99,6 +99,7 @@ public final class PulsarSource<OUT>
      * The constructor for PulsarSource, it's package protected for forcing using {@link
      * PulsarSourceBuilder}.
      */
+    @SuppressWarnings("java:S107")
     public PulsarSource(
             SourceConfiguration sourceConfiguration,
             PulsarSubscriber subscriber,

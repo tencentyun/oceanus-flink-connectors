@@ -25,19 +25,13 @@ import org.apache.pulsar.client.api.Schema;
 
 import java.net.URL;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
-
-import static org.apache.flink.connector.pulsar.source.enumerator.topic.TopicNameUtils.topicName;
 
 /**
  * The implementation for Flink connector test tools. Providing the common test case writing
  * constraint for both source, sink and table API.
  */
 public abstract class PulsarTestContext<T> implements ExternalContext {
-
-    private final Set<String> generateTopics = new HashSet<>();
 
     protected final PulsarRuntimeOperator operator;
     // The schema used for consuming and producing messages between Pulsar and tests.
@@ -51,14 +45,6 @@ public abstract class PulsarTestContext<T> implements ExternalContext {
     /** Implement this method for providing a more friendly test name in IDE. */
     protected abstract String displayName();
 
-    /**
-     * Add the generated topic into the testing context, They would be cleaned after all the cases
-     * have finished.
-     */
-    protected final void registerTopic(String topic) {
-        generateTopics.add(topicName(topic));
-    }
-
     @Override
     public String toString() {
         return displayName();
@@ -71,9 +57,5 @@ public abstract class PulsarTestContext<T> implements ExternalContext {
     }
 
     @Override
-    public void close() throws Exception {
-        for (String topic : generateTopics) {
-            operator.deleteTopic(topic);
-        }
-    }
+    public void close() throws Exception {}
 }

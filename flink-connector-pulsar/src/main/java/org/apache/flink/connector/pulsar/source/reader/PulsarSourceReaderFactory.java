@@ -23,6 +23,7 @@ import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
+import org.apache.flink.connector.pulsar.common.request.PulsarAdminRequest;
 import org.apache.flink.connector.pulsar.common.schema.BytesSchema;
 import org.apache.flink.connector.pulsar.common.schema.PulsarSchema;
 import org.apache.flink.connector.pulsar.source.config.SourceConfiguration;
@@ -35,7 +36,6 @@ import org.apache.flink.connector.pulsar.source.reader.split.PulsarOrderedPartit
 import org.apache.flink.connector.pulsar.source.reader.split.PulsarUnorderedPartitionSplitReader;
 import org.apache.flink.connector.pulsar.source.split.PulsarPartitionSplit;
 
-import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -48,7 +48,6 @@ import javax.annotation.Nullable;
 
 import java.util.function.Supplier;
 
-import static org.apache.flink.connector.pulsar.common.config.PulsarClientFactory.createAdmin;
 import static org.apache.flink.connector.pulsar.common.config.PulsarClientFactory.createClient;
 
 /**
@@ -75,7 +74,7 @@ public final class PulsarSourceReaderFactory {
             @Nullable CryptoKeyReader cryptoKeyReader) {
 
         PulsarClient pulsarClient = createClient(sourceConfiguration);
-        PulsarAdmin pulsarAdmin = createAdmin(sourceConfiguration);
+        PulsarAdminRequest adminRequest = new PulsarAdminRequest(sourceConfiguration);
 
         // Choose the right schema to use.
         Schema<byte[]> schema;
@@ -103,7 +102,7 @@ public final class PulsarSourceReaderFactory {
                     () ->
                             new PulsarOrderedPartitionSplitReader(
                                     pulsarClient,
-                                    pulsarAdmin,
+                                    adminRequest,
                                     sourceConfiguration,
                                     schema,
                                     cryptoKeyReader);
@@ -115,7 +114,7 @@ public final class PulsarSourceReaderFactory {
                     readerContext,
                     sourceConfiguration,
                     pulsarClient,
-                    pulsarAdmin);
+                    adminRequest);
         } else if (subscriptionType == SubscriptionType.Shared
                 || subscriptionType == SubscriptionType.Key_Shared) {
             TransactionCoordinatorClient coordinatorClient =
@@ -129,7 +128,7 @@ public final class PulsarSourceReaderFactory {
                     () ->
                             new PulsarUnorderedPartitionSplitReader(
                                     pulsarClient,
-                                    pulsarAdmin,
+                                    adminRequest,
                                     sourceConfiguration,
                                     schema,
                                     cryptoKeyReader,
@@ -142,7 +141,7 @@ public final class PulsarSourceReaderFactory {
                     readerContext,
                     sourceConfiguration,
                     pulsarClient,
-                    pulsarAdmin,
+                    adminRequest,
                     coordinatorClient);
         } else {
             throw new UnsupportedOperationException(

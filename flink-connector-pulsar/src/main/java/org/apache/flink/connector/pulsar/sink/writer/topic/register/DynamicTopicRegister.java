@@ -20,6 +20,7 @@ package org.apache.flink.connector.pulsar.sink.writer.topic.register;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.operators.ProcessingTimeService;
+import org.apache.flink.connector.pulsar.common.request.PulsarAdminRequest;
 import org.apache.flink.connector.pulsar.sink.config.SinkConfiguration;
 import org.apache.flink.connector.pulsar.sink.writer.topic.TopicExtractor;
 import org.apache.flink.connector.pulsar.sink.writer.topic.TopicRegister;
@@ -32,7 +33,6 @@ import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.shaded.guava30.com.google.common.cache.Cache;
 import org.apache.flink.shaded.guava30.com.google.common.cache.CacheBuilder;
 
-import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 
 import java.io.IOException;
@@ -41,7 +41,6 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import static java.util.Collections.singletonList;
-import static org.apache.flink.connector.pulsar.common.config.PulsarClientFactory.createAdmin;
 import static org.apache.flink.connector.pulsar.source.enumerator.topic.TopicNameUtils.topicNameWithPartition;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -53,7 +52,7 @@ public class DynamicTopicRegister<IN> implements TopicRegister<IN> {
     private final TopicExtractor<IN> topicExtractor;
 
     // Dynamic fields.
-    private transient PulsarAdmin pulsarAdmin;
+    private transient PulsarAdminRequest adminRequest;
     private transient CachedTopicMetadataProvider cachedMetadataProvider;
     private transient NotExistedTopicMetadataProvider notExistedMetadataProvider;
     private transient Cache<String, List<String>> partitionsCache;
@@ -102,11 +101,11 @@ public class DynamicTopicRegister<IN> implements TopicRegister<IN> {
     @Override
     public void open(SinkConfiguration sinkConfiguration, ProcessingTimeService timeService) {
         // Initialize Pulsar admin instance.
-        this.pulsarAdmin = createAdmin(sinkConfiguration);
+        this.adminRequest = new PulsarAdminRequest(sinkConfiguration);
         this.cachedMetadataProvider =
-                new CachedTopicMetadataProvider(pulsarAdmin, sinkConfiguration);
+                new CachedTopicMetadataProvider(adminRequest, sinkConfiguration);
         this.notExistedMetadataProvider =
-                new NotExistedTopicMetadataProvider(pulsarAdmin, sinkConfiguration);
+                new NotExistedTopicMetadataProvider(adminRequest, sinkConfiguration);
 
         long refreshInterval = sinkConfiguration.getTopicMetadataRefreshInterval();
         if (refreshInterval <= 0) {
@@ -124,8 +123,8 @@ public class DynamicTopicRegister<IN> implements TopicRegister<IN> {
 
     @Override
     public void close() throws IOException {
-        if (pulsarAdmin != null) {
-            pulsarAdmin.close();
+        if (adminRequest != null) {
+            adminRequest.close();
         }
     }
 }

@@ -53,7 +53,7 @@ import static org.apache.flink.connector.pulsar.sink.writer.serializer.PulsarSer
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for using PulsarSink writing to a Pulsar cluster. */
-class PulsarSinkITCase extends PulsarTestSuiteBase {
+class PulsarSinkITCase {
 
     /** Integration test based on connector testing framework. */
     @Nested

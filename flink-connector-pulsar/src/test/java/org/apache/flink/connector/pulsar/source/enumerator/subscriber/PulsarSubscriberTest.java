@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.pulsar.source.enumerator.subscriber;
 
+import org.apache.flink.connector.pulsar.common.request.PulsarAdminRequest;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicNameUtils;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicPartition;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.range.FullRangeGenerator;
@@ -50,11 +51,13 @@ class PulsarSubscriberTest extends PulsarTestSuiteBase {
     void topicListSubscriber() {
         operator().createTopic(TOPIC1, NUM_PARTITIONS_PER_TOPIC);
         operator().createTopic(TOPIC2, NUM_PARTITIONS_PER_TOPIC);
+        PulsarAdminRequest adminRequest =
+                new PulsarAdminRequest(operator().admin(), operator().config());
 
         PulsarSubscriber subscriber = getTopicListSubscriber(Arrays.asList(TOPIC1, TOPIC2));
         Set<TopicPartition> topicPartitions =
                 subscriber.getSubscribedTopicPartitions(
-                        operator().admin(), new FullRangeGenerator(), NUM_PARALLELISM);
+                        adminRequest, new FullRangeGenerator(), NUM_PARALLELISM);
         Set<TopicPartition> expectedPartitions = new HashSet<>();
 
         for (int i = 0; i < NUM_PARTITIONS_PER_TOPIC; i++) {
@@ -73,6 +76,8 @@ class PulsarSubscriberTest extends PulsarTestSuiteBase {
         operator().createTopic(TOPIC1, NUM_PARTITIONS_PER_TOPIC);
         operator().createTopic(TOPIC2, NUM_PARTITIONS_PER_TOPIC);
         operator().createTopic(TOPIC3, NUM_PARTITIONS_PER_TOPIC);
+        PulsarAdminRequest adminRequest =
+                new PulsarAdminRequest(operator().admin(), operator().config());
 
         PulsarSubscriber subscriber =
                 getTopicPatternSubscriber(
@@ -80,7 +85,7 @@ class PulsarSubscriberTest extends PulsarTestSuiteBase {
 
         Set<TopicPartition> topicPartitions =
                 subscriber.getSubscribedTopicPartitions(
-                        operator().admin(), new FullRangeGenerator(), NUM_PARALLELISM);
+                        adminRequest, new FullRangeGenerator(), NUM_PARALLELISM);
 
         Set<TopicPartition> expectedPartitions = new HashSet<>();
 

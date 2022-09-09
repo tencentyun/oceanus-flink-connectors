@@ -18,12 +18,12 @@
 
 package org.apache.flink.connector.pulsar.source.enumerator.subscriber.impl;
 
+import org.apache.flink.connector.pulsar.common.request.PulsarAdminRequest;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicNameUtils;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicPartition;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicRange;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.range.RangeGenerator;
 
-import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.RegexSubscriptionMode;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -59,16 +59,15 @@ public class TopicPatternSubscriber extends BasePulsarSubscriber {
 
     @Override
     public Set<TopicPartition> getSubscribedTopicPartitions(
-            PulsarAdmin pulsarAdmin, RangeGenerator rangeGenerator, int parallelism) {
+            PulsarAdminRequest adminRequest, RangeGenerator rangeGenerator, int parallelism) {
         try {
-            return pulsarAdmin
-                    .namespaces()
+            return adminRequest
                     .getTopics(namespace)
                     .parallelStream()
                     .filter(this::matchesSubscriptionMode)
                     .filter(not(TopicNameUtils::isInternal))
                     .filter(topic -> topicPattern.matcher(topic).find())
-                    .map(topic -> queryTopicMetadata(pulsarAdmin, topic))
+                    .map(topic -> queryTopicMetadata(adminRequest, topic))
                     .filter(Objects::nonNull)
                     .flatMap(
                             metadata -> {
@@ -82,7 +81,7 @@ public class TopicPatternSubscriber extends BasePulsarSubscriber {
                 // Skip the topic metadata query.
                 return Collections.emptySet();
             } else {
-                // This method would cause the failure for subscriber.
+                // This method would cause failure for subscribers.
                 throw new IllegalStateException(e);
             }
         }

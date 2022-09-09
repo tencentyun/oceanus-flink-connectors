@@ -19,12 +19,12 @@
 package org.apache.flink.connector.pulsar.source.reader.split;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.connector.pulsar.common.request.PulsarAdminRequest;
 import org.apache.flink.connector.pulsar.source.config.SourceConfiguration;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicPartition;
 import org.apache.flink.connector.pulsar.source.reader.source.PulsarOrderedSourceReader;
 import org.apache.flink.connector.pulsar.source.split.PulsarPartitionSplit;
 
-import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.Message;
@@ -38,7 +38,6 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.time.Duration;
-import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.connector.pulsar.common.utils.PulsarExceptionUtils.sneakyClient;
@@ -56,11 +55,11 @@ public class PulsarOrderedPartitionSplitReader extends PulsarPartitionSplitReade
 
     public PulsarOrderedPartitionSplitReader(
             PulsarClient pulsarClient,
-            PulsarAdmin pulsarAdmin,
+            PulsarAdminRequest adminRequest,
             SourceConfiguration sourceConfiguration,
             Schema<byte[]> schema,
             @Nullable CryptoKeyReader cryptoKeyReader) {
-        super(pulsarClient, pulsarAdmin, sourceConfiguration, schema, cryptoKeyReader);
+        super(pulsarClient, adminRequest, sourceConfiguration, schema, cryptoKeyReader);
     }
 
     @Override
@@ -98,17 +97,13 @@ public class PulsarOrderedPartitionSplitReader extends PulsarPartitionSplitReade
                 // See https://github.com/apache/pulsar/issues/16757 for more details.
 
                 String topicName = split.getPartition().getFullTopicName();
-                List<String> subscriptions = pulsarAdmin.topics().getSubscriptions(topicName);
                 String subscriptionName = sourceConfiguration.getSubscriptionName();
 
-                if (!subscriptions.contains(subscriptionName)) {
-                    // If this subscription is not available. Just create it.
-                    pulsarAdmin
-                            .topics()
-                            .createSubscription(topicName, subscriptionName, initialPosition);
-                } else {
+                // If this subscription is not available. Just create it.
+                if (!adminRequest.createSubscriptionIfNotExist(
+                        topicName, subscriptionName, initialPosition)) {
                     // Reset the subscription if this is existed.
-                    pulsarAdmin.topics().resetCursor(topicName, subscriptionName, initialPosition);
+                    adminRequest.resetCursor(topicName, subscriptionName, initialPosition);
                 }
             } catch (PulsarAdminException e) {
                 if (sourceConfiguration.getVerifyInitialOffsets() == FAIL_ON_MISMATCH) {

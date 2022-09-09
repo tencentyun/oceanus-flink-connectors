@@ -22,13 +22,13 @@ import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.SourceReaderBase;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
+import org.apache.flink.connector.pulsar.common.request.PulsarAdminRequest;
 import org.apache.flink.connector.pulsar.source.config.SourceConfiguration;
 import org.apache.flink.connector.pulsar.source.reader.emitter.PulsarRecordEmitter;
 import org.apache.flink.connector.pulsar.source.reader.fetcher.PulsarFetcherManagerBase;
 import org.apache.flink.connector.pulsar.source.split.PulsarPartitionSplit;
 import org.apache.flink.connector.pulsar.source.split.PulsarPartitionSplitState;
 
-import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClient;
 
@@ -45,7 +45,7 @@ abstract class PulsarSourceReaderBase<OUT>
 
     protected final SourceConfiguration sourceConfiguration;
     protected final PulsarClient pulsarClient;
-    protected final PulsarAdmin pulsarAdmin;
+    protected final PulsarAdminRequest adminRequest;
 
     protected PulsarSourceReaderBase(
             FutureCompletingBlockingQueue<RecordsWithSplitIds<Message<byte[]>>> elementsQueue,
@@ -54,12 +54,12 @@ abstract class PulsarSourceReaderBase<OUT>
             SourceReaderContext context,
             SourceConfiguration sourceConfiguration,
             PulsarClient pulsarClient,
-            PulsarAdmin pulsarAdmin) {
+            PulsarAdminRequest adminRequest) {
         super(elementsQueue, splitFetcherManager, recordEmitter, sourceConfiguration, context);
 
         this.sourceConfiguration = sourceConfiguration;
         this.pulsarClient = pulsarClient;
-        this.pulsarAdmin = pulsarAdmin;
+        this.adminRequest = adminRequest;
     }
 
     @Override
@@ -86,6 +86,6 @@ abstract class PulsarSourceReaderBase<OUT>
 
         // Close shared pulsar resources.
         pulsarClient.shutdown();
-        pulsarAdmin.close();
+        adminRequest.close();
     }
 }

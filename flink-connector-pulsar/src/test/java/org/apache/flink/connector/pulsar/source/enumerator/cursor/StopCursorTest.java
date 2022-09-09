@@ -21,6 +21,7 @@ package org.apache.flink.connector.pulsar.source.enumerator.cursor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitsAddition;
+import org.apache.flink.connector.pulsar.common.request.PulsarAdminRequest;
 import org.apache.flink.connector.pulsar.source.config.SourceConfiguration;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicPartition;
 import org.apache.flink.connector.pulsar.source.reader.split.PulsarOrderedPartitionSplitReader;
@@ -53,12 +54,13 @@ class StopCursorTest extends PulsarTestSuiteBase {
     void publishTimeStopCursor() throws IOException {
         String topicName = randomAlphanumeric(5);
         operator().createTopic(topicName, 2);
+        SourceConfiguration sourceConfig = sourceConfig();
 
         PulsarOrderedPartitionSplitReader splitReader =
                 new PulsarOrderedPartitionSplitReader(
                         operator().client(),
-                        operator().admin(),
-                        sourceConfig(),
+                        new PulsarAdminRequest(operator().admin(), sourceConfig),
+                        sourceConfig,
                         Schema.BYTES,
                         null);
         // send the first message and set the stopCursor to filter any late stopCursor

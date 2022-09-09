@@ -21,6 +21,7 @@ package org.apache.flink.connector.pulsar.source.enumerator;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
+import org.apache.flink.connector.pulsar.common.request.PulsarAdminRequest;
 import org.apache.flink.connector.pulsar.source.config.SourceConfiguration;
 import org.apache.flink.connector.pulsar.source.enumerator.assigner.SplitAssigner;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.CursorPosition;
@@ -32,7 +33,6 @@ import org.apache.flink.connector.pulsar.source.enumerator.topic.range.RangeGene
 import org.apache.flink.connector.pulsar.source.split.PulsarPartitionSplit;
 import org.apache.flink.util.FlinkRuntimeException;
 
-import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.MessageId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,7 +44,6 @@ import java.util.List;
 import java.util.Set;
 
 import static java.util.Collections.singletonList;
-import static org.apache.flink.connector.pulsar.common.config.PulsarClientFactory.createAdmin;
 import static org.apache.flink.connector.pulsar.common.utils.PulsarExceptionUtils.sneakyAdmin;
 import static org.apache.flink.connector.pulsar.source.enumerator.PulsarSourceEnumState.initialState;
 import static org.apache.flink.connector.pulsar.source.enumerator.assigner.SplitAssignerFactory.createAssigner;
@@ -56,7 +55,7 @@ public class PulsarSourceEnumerator
 
     private static final Logger LOG = LoggerFactory.getLogger(PulsarSourceEnumerator.class);
 
-    private final PulsarAdmin pulsarAdmin;
+    private final PulsarAdminRequest adminRequest;
     private final PulsarSubscriber subscriber;
     private final StartCursor startCursor;
     private final RangeGenerator rangeGenerator;
@@ -89,7 +88,7 @@ public class PulsarSourceEnumerator
             SourceConfiguration sourceConfiguration,
             SplitEnumeratorContext<PulsarPartitionSplit> context,
             PulsarSourceEnumState enumState) {
-        this.pulsarAdmin = createAdmin(sourceConfiguration);
+        this.adminRequest = new PulsarAdminRequest(sourceConfiguration);
         this.subscriber = subscriber;
         this.startCursor = startCursor;
         this.rangeGenerator = rangeGenerator;
@@ -160,8 +159,8 @@ public class PulsarSourceEnumerator
 
     @Override
     public void close() {
-        if (pulsarAdmin != null) {
-            pulsarAdmin.close();
+        if (adminRequest != null) {
+            adminRequest.close();
         }
     }
 
@@ -186,7 +185,7 @@ public class PulsarSourceEnumerator
      */
     private Set<TopicPartition> getSubscribedTopicPartitions() {
         int parallelism = context.currentParallelism();
-        return subscriber.getSubscribedTopicPartitions(pulsarAdmin, rangeGenerator, parallelism);
+        return subscriber.getSubscribedTopicPartitions(adminRequest, rangeGenerator, parallelism);
     }
 
     /**
@@ -219,21 +218,14 @@ public class PulsarSourceEnumerator
         for (TopicPartition partition : newPartitions) {
             String topicName = partition.getFullTopicName();
             String subscriptionName = sourceConfiguration.getSubscriptionName();
+            CursorPosition position =
+                    startCursor.position(partition.getTopic(), partition.getPartitionId());
+            MessageId initialPosition = queryInitialPosition(topicName, position);
 
-            List<String> subscriptions =
-                    sneakyAdmin(() -> pulsarAdmin.topics().getSubscriptions(topicName));
-            if (!subscriptions.contains(subscriptionName)) {
-                CursorPosition position =
-                        startCursor.position(partition.getTopic(), partition.getPartitionId());
-                MessageId initialPosition = queryInitialPosition(topicName, position);
-
-                sneakyAdmin(
-                        () ->
-                                pulsarAdmin
-                                        .topics()
-                                        .createSubscription(
-                                                topicName, subscriptionName, initialPosition));
-            }
+            sneakyAdmin(
+                    () ->
+                            adminRequest.createSubscriptionIfNotExist(
+                                    topicName, subscriptionName, initialPosition));
         }
     }
 
@@ -243,9 +235,8 @@ public class PulsarSourceEnumerator
         if (type == CursorPosition.Type.TIMESTAMP) {
             return sneakyAdmin(
                     () ->
-                            pulsarAdmin
-                                    .topics()
-                                    .getMessageIdByTimestamp(topicName, position.getTimestamp()));
+                            adminRequest.getMessageIdByPublishTime(
+                                    topicName, position.getTimestamp()));
         } else if (type == CursorPosition.Type.MESSAGE_ID) {
             return position.getMessageId();
         } else {

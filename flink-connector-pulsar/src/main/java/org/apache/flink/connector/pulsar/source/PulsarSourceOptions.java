@@ -26,10 +26,8 @@ import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.description.Description;
 import org.apache.flink.connector.pulsar.common.config.PulsarOptions;
 import org.apache.flink.connector.pulsar.source.config.CursorVerification;
-import org.apache.flink.connector.pulsar.source.enumerator.cursor.StartCursor;
 
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
-import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
 
@@ -139,14 +137,6 @@ public final class PulsarSourceOptions {
                                     .text(
                                             "The value (in ms) should be greater than the checkpoint interval.")
                                     .build());
-
-    /**
-     * @deprecated Use {@link #PULSAR_READ_TRANSACTION_TIMEOUT} instead. This would be removed in
-     *     the next release.
-     */
-    @Deprecated
-    public static final ConfigOption<Long> PULSAR_TRANSACTION_TIMEOUT_MILLIS =
-            PULSAR_READ_TRANSACTION_TIMEOUT;
 
     public static final ConfigOption<Long> PULSAR_DEFAULT_FETCH_TIME =
             ConfigOptions.key(SOURCE_CONFIG_PREFIX + "defaultFetchTime")
@@ -522,20 +512,6 @@ public final class PulsarSourceOptions {
                                             "Attempting to enable it on subscriptions to non-persistent topics or on shared subscriptions leads to a subscription call throwing a %s.",
                                             code("PulsarClientException"))
                                     .build());
-
-    /**
-     * @deprecated This option would be reset by {@link StartCursor}, no need to use it anymore.
-     *     Pulsar didn't support this config option before 1.10.1, so we have to remove this config
-     *     option.
-     */
-    @Deprecated
-    public static final ConfigOption<SubscriptionInitialPosition>
-            PULSAR_SUBSCRIPTION_INITIAL_POSITION =
-                    ConfigOptions.key(CONSUMER_CONFIG_PREFIX + "subscriptionInitialPosition")
-                            .enumType(SubscriptionInitialPosition.class)
-                            .defaultValue(SubscriptionInitialPosition.Latest)
-                            .withDescription(
-                                    "Initial position at which to set cursor when subscribing to a topic at first time.");
 
     // The config set for DeadLetterPolicy
 

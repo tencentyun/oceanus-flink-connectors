@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.connector.pulsar.formats;
+package org.apache.flink.connector.pulsar.table.formats;
 
 import org.apache.flink.connector.pulsar.table.format.protobufnative.PulsarProtobufNativeRowDataDeserializationSchema;
 import org.apache.flink.table.data.RowData;

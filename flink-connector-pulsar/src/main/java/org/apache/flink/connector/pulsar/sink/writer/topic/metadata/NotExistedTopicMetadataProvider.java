@@ -19,14 +19,13 @@
 package org.apache.flink.connector.pulsar.sink.writer.topic.metadata;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.connector.pulsar.common.request.PulsarAdminRequest;
 import org.apache.flink.connector.pulsar.sink.config.SinkConfiguration;
 import org.apache.flink.connector.pulsar.sink.writer.topic.TopicExtractor.TopicMetadataProvider;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicMetadata;
 
-import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
-import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 
 import static org.apache.flink.util.ExceptionUtils.findThrowable;
 import static org.apache.pulsar.common.partition.PartitionedTopicMetadata.NON_PARTITIONED;
@@ -38,13 +37,13 @@ import static org.apache.pulsar.common.partition.PartitionedTopicMetadata.NON_PA
 @Internal
 public class NotExistedTopicMetadataProvider implements TopicMetadataProvider {
 
-    private final PulsarAdmin pulsarAdmin;
+    private final PulsarAdminRequest adminRequest;
     private final boolean enableTopicAutoCreation;
     private final int defaultTopicPartitions;
 
     public NotExistedTopicMetadataProvider(
-            PulsarAdmin pulsarAdmin, SinkConfiguration sinkConfiguration) {
-        this.pulsarAdmin = pulsarAdmin;
+            PulsarAdminRequest adminRequest, SinkConfiguration sinkConfiguration) {
+        this.adminRequest = adminRequest;
         this.enableTopicAutoCreation = sinkConfiguration.isEnableTopicAutoCreation();
         this.defaultTopicPartitions = sinkConfiguration.getDefaultTopicPartitions();
     }
@@ -52,8 +51,7 @@ public class NotExistedTopicMetadataProvider implements TopicMetadataProvider {
     @Override
     public TopicMetadata query(String topic) throws PulsarAdminException {
         try {
-            PartitionedTopicMetadata meta = pulsarAdmin.topics().getPartitionedTopicMetadata(topic);
-            return new TopicMetadata(topic, meta.partitions);
+            return adminRequest.getTopicMetadata(topic);
         } catch (PulsarAdminException e) {
             if (findThrowable(e, NotFoundException.class).isPresent() && enableTopicAutoCreation) {
                 createTopic(topic);
@@ -66,9 +64,9 @@ public class NotExistedTopicMetadataProvider implements TopicMetadataProvider {
 
     private void createTopic(String topic) throws PulsarAdminException {
         if (defaultTopicPartitions == NON_PARTITIONED) {
-            pulsarAdmin.topics().createNonPartitionedTopic(topic);
+            adminRequest.createNonPartitionedTopic(topic);
         } else {
-            pulsarAdmin.topics().createPartitionedTopic(topic, defaultTopicPartitions);
+            adminRequest.createPartitionedTopic(topic, defaultTopicPartitions);
         }
     }
 }

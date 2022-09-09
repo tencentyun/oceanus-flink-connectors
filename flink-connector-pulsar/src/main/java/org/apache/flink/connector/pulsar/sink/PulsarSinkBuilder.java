@@ -116,7 +116,7 @@ public class PulsarSinkBuilder<IN> {
     private TopicRouter<IN> topicRouter;
     private MessageDelayer<IN> messageDelayer;
     @Nullable private CryptoKeyReader cryptoKeyReader;
-    private List<String> encryptionKeys = new ArrayList<>();
+    private final List<String> encryptionKeys = new ArrayList<>();
 
     // private builder constructor.
     PulsarSinkBuilder() {

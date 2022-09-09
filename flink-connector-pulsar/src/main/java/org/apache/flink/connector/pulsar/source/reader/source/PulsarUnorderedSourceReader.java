@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
+import org.apache.flink.connector.pulsar.common.request.PulsarAdminRequest;
 import org.apache.flink.connector.pulsar.source.config.SourceConfiguration;
 import org.apache.flink.connector.pulsar.source.reader.emitter.PulsarRecordEmitter;
 import org.apache.flink.connector.pulsar.source.reader.fetcher.PulsarUnorderedFetcherManager;
@@ -29,7 +30,6 @@ import org.apache.flink.connector.pulsar.source.reader.split.PulsarUnorderedPart
 import org.apache.flink.connector.pulsar.source.split.PulsarPartitionSplit;
 import org.apache.flink.connector.pulsar.source.split.PulsarPartitionSplitState;
 
-import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClient;
@@ -70,7 +70,7 @@ public class PulsarUnorderedSourceReader<OUT> extends PulsarSourceReaderBase<OUT
             SourceReaderContext context,
             SourceConfiguration sourceConfiguration,
             PulsarClient pulsarClient,
-            PulsarAdmin pulsarAdmin,
+            PulsarAdminRequest adminRequest,
             @Nullable TransactionCoordinatorClient coordinatorClient) {
         super(
                 elementsQueue,
@@ -79,7 +79,7 @@ public class PulsarUnorderedSourceReader<OUT> extends PulsarSourceReaderBase<OUT
                 context,
                 sourceConfiguration,
                 pulsarClient,
-                pulsarAdmin);
+                adminRequest);
 
         this.coordinatorClient = coordinatorClient;
         this.transactionsToCommit = Collections.synchronizedSortedMap(new TreeMap<>());

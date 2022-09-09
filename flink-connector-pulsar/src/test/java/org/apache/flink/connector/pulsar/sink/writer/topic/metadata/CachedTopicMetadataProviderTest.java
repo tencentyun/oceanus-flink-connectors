@@ -19,6 +19,7 @@
 package org.apache.flink.connector.pulsar.sink.writer.topic.metadata;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.connector.pulsar.common.request.PulsarAdminRequest;
 import org.apache.flink.connector.pulsar.sink.config.SinkConfiguration;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicMetadata;
 import org.apache.flink.connector.pulsar.testutils.PulsarTestSuiteBase;
@@ -39,9 +40,11 @@ class CachedTopicMetadataProviderTest extends PulsarTestSuiteBase {
 
     @Test
     void queryTopicsWhichIsNotExisted() {
+        SinkConfiguration sinkConfiguration = new SinkConfiguration(new Configuration());
+        PulsarAdminRequest adminRequest =
+                new PulsarAdminRequest(operator().admin(), sinkConfiguration);
         CachedTopicMetadataProvider provider =
-                new CachedTopicMetadataProvider(
-                        operator().admin(), new SinkConfiguration(new Configuration()));
+                new CachedTopicMetadataProvider(adminRequest, sinkConfiguration);
 
         String notExistedTopic = "not-existed-topic-" + randomAlphanumeric(8);
 
@@ -60,9 +63,11 @@ class CachedTopicMetadataProviderTest extends PulsarTestSuiteBase {
             configuration.set(PULSAR_TOPIC_METADATA_REFRESH_INTERVAL, -1L);
         }
 
+        SinkConfiguration sinkConfiguration = new SinkConfiguration(configuration);
+        PulsarAdminRequest adminRequest =
+                new PulsarAdminRequest(operator().admin(), sinkConfiguration);
         CachedTopicMetadataProvider provider =
-                new CachedTopicMetadataProvider(
-                        operator().admin(), new SinkConfiguration(configuration));
+                new CachedTopicMetadataProvider(adminRequest, sinkConfiguration);
 
         TopicMetadata metadata1 = provider.query(topicName);
         assertThat(metadata1).hasFieldOrPropertyWithValue("partitionSize", 8);
@@ -85,8 +90,13 @@ class CachedTopicMetadataProviderTest extends PulsarTestSuiteBase {
 
         Configuration configuration = new Configuration();
         configuration.set(PULSAR_TOPIC_METADATA_REFRESH_INTERVAL, -1L);
+
+        SinkConfiguration sinkConfiguration = new SinkConfiguration(configuration);
+        PulsarAdminRequest adminRequest =
+                new PulsarAdminRequest(operator().admin(), sinkConfiguration);
         CachedTopicMetadataProvider provider =
-                new CachedTopicMetadataProvider(
-                        operator().admin(), new SinkConfiguration(configuration));
+                new CachedTopicMetadataProvider(adminRequest, sinkConfiguration);
+
+        // TODO Finish this test?
     }
 }

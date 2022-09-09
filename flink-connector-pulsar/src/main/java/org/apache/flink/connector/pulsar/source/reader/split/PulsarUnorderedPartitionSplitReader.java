@@ -19,12 +19,12 @@
 package org.apache.flink.connector.pulsar.source.reader.split;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.connector.pulsar.common.request.PulsarAdminRequest;
 import org.apache.flink.connector.pulsar.source.config.SourceConfiguration;
 import org.apache.flink.connector.pulsar.source.reader.source.PulsarUnorderedSourceReader;
 import org.apache.flink.connector.pulsar.source.split.PulsarPartitionSplit;
 import org.apache.flink.connector.pulsar.source.split.PulsarPartitionSplitState;
 
-import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.Message;
@@ -65,12 +65,12 @@ public class PulsarUnorderedPartitionSplitReader extends PulsarPartitionSplitRea
 
     public PulsarUnorderedPartitionSplitReader(
             PulsarClient pulsarClient,
-            PulsarAdmin pulsarAdmin,
+            PulsarAdminRequest adminRequest,
             SourceConfiguration sourceConfiguration,
             Schema<byte[]> schema,
             @Nullable CryptoKeyReader cryptoKeyReader,
             TransactionCoordinatorClient coordinatorClient) {
-        super(pulsarClient, pulsarAdmin, sourceConfiguration, schema, cryptoKeyReader);
+        super(pulsarClient, adminRequest, sourceConfiguration, schema, cryptoKeyReader);
 
         this.coordinatorClient = coordinatorClient;
     }

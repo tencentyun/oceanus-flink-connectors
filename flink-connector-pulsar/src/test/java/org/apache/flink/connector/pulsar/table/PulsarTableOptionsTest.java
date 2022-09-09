@@ -30,7 +30,6 @@ import java.util.Map;
 import static org.apache.commons.lang3.RandomStringUtils.randomAlphabetic;
 import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_AUTH_PARAM_MAP;
 import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_AUTH_PLUGIN_CLASS_NAME;
-import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_SUBSCRIPTION_INITIAL_POSITION;
 import static org.apache.flink.connector.pulsar.source.enumerator.topic.TopicNameUtils.topicNameWithPartition;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.SINK_CUSTOM_TOPIC_ROUTER;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.SINK_MESSAGE_DELAY_INTERVAL;
@@ -353,21 +352,6 @@ public class PulsarTableOptionsTest extends PulsarTableTestBase {
         runSinkAndExpectException(
                 topicName,
                 new ValidationException("Invalid value for option 'sink.message-delay-interval'."));
-    }
-
-    // --------------------------------------------------------------------------------------------
-    // PulsarSourceOptions  Test
-    // --------------------------------------------------------------------------------------------
-    @Test
-    void subscriptionInitialPosition() {
-        final String topicName = randomTopicName();
-        Map<String, String> testConfigs = testConfigWithTopicAndFormat(topicName);
-
-        testConfigs.put(PULSAR_SUBSCRIPTION_INITIAL_POSITION.key(), "Earliest");
-
-        runSql(topicName, createTestConfig(testConfigs));
-        runSinkAndExpectSucceed(topicName);
-        runSourceAndExpectSucceed(topicName);
     }
 
     // --------------------------------------------------------------------------------------------

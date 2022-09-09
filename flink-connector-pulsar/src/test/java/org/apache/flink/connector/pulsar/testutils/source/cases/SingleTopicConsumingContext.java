@@ -38,7 +38,6 @@ public class SingleTopicConsumingContext extends PulsarSourceTestContext {
 
     public SingleTopicConsumingContext(PulsarTestEnvironment environment) {
         super(environment);
-        registerTopic(topicName);
     }
 
     @Override

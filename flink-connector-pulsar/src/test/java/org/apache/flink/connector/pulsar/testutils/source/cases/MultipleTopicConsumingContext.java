@@ -64,7 +64,6 @@ public class MultipleTopicConsumingContext extends PulsarSourceTestContext {
     protected String generatePartitionName() {
         String topic = topicPrefix + index;
         operator.createTopic(topic, 1);
-        registerTopic(topic);
         index++;
 
         return topicNameWithPartition(topic, 0);

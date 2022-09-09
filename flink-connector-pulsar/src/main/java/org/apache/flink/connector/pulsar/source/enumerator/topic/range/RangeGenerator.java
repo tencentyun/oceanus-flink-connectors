@@ -19,7 +19,6 @@
 package org.apache.flink.connector.pulsar.source.enumerator.topic.range;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.pulsar.source.config.SourceConfiguration;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicMetadata;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicRange;
@@ -53,13 +52,6 @@ public interface RangeGenerator extends Serializable {
 
     /** Initialize some extra resource when bootstrap the source. */
     default void open(SourceConfiguration sourceConfiguration) {
-        // This method is used for user implementation.
-        open(sourceConfiguration, sourceConfiguration);
-    }
-
-    /** @deprecated Use {@link #open(SourceConfiguration)} instead. */
-    @Deprecated
-    default void open(Configuration configuration, SourceConfiguration sourceConfiguration) {
         // This method is used for user implementation.
     }
 }

@@ -19,6 +19,7 @@
 package org.apache.flink.connector.pulsar.sink.writer.topic.metadata;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.connector.pulsar.common.request.PulsarAdminRequest;
 import org.apache.flink.connector.pulsar.sink.config.SinkConfiguration;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicMetadata;
 import org.apache.flink.connector.pulsar.testutils.PulsarTestSuiteBase;
@@ -39,8 +40,11 @@ class NotExistedTopicMetadataProviderTest extends PulsarTestSuiteBase {
         operator().createTopic("existed-topic", 10);
 
         // This provider will create a topic with 5 partitions.
+        SinkConfiguration configuration = configuration(5);
+        PulsarAdminRequest adminRequest = new PulsarAdminRequest(operator().admin(), configuration);
+
         NotExistedTopicMetadataProvider provider1 =
-                new NotExistedTopicMetadataProvider(operator().admin(), configuration(5));
+                new NotExistedTopicMetadataProvider(adminRequest, configuration);
 
         TopicMetadata metadata1 = provider1.query("existed-topic");
         assertThat(metadata1).hasFieldOrPropertyWithValue("partitionSize", 10);
@@ -50,7 +54,7 @@ class NotExistedTopicMetadataProviderTest extends PulsarTestSuiteBase {
 
         // This provider will create a topic with 8 partitions.
         NotExistedTopicMetadataProvider provider2 =
-                new NotExistedTopicMetadataProvider(operator().admin(), configuration(8));
+                new NotExistedTopicMetadataProvider(adminRequest, configuration(8));
 
         TopicMetadata metadata3 = provider2.query("not-existed-topic-1");
         assertThat(metadata3).hasFieldOrPropertyWithValue("partitionSize", 5);

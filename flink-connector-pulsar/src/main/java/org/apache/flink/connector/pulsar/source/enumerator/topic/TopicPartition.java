@@ -29,7 +29,6 @@ import org.apache.pulsar.common.naming.TopicName;
 import java.io.Serializable;
 import java.util.Objects;
 
-import static org.apache.flink.connector.pulsar.source.enumerator.topic.TopicNameUtils.topicName;
 import static org.apache.flink.connector.pulsar.source.enumerator.topic.TopicNameUtils.topicNameWithPartition;
 import static org.apache.flink.connector.pulsar.source.enumerator.topic.TopicRange.createFullRange;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -70,13 +69,9 @@ public class TopicPartition implements Serializable {
     /** Create a top-level topic without partition information. */
     public TopicPartition(String topic) {
         TopicName topicName = TopicName.get(topic);
-        if (topicName.isPartitioned()) {
-            this.topic = topicName.getPartitionedTopicName();
-            this.partitionId = topicName.getPartitionIndex();
-        } else {
-            this.topic = topicName.toString();
-            this.partitionId = NON_PARTITION_ID;
-        }
+        this.topic = topicName.getPartitionedTopicName();
+        this.partitionId =
+                topicName.isPartitioned() ? topicName.getPartitionIndex() : NON_PARTITION_ID;
         this.range = createFullRange();
     }
 
@@ -87,8 +82,13 @@ public class TopicPartition implements Serializable {
 
     @Internal
     public TopicPartition(String topic, int partitionId, TopicRange range) {
-        this.topic = topicName(checkNotNull(topic));
-        this.partitionId = partitionId;
+        TopicName topicName = TopicName.get(topic);
+
+        this.topic = topicName.getPartitionedTopicName();
+        this.partitionId =
+                partitionId == NON_PARTITION_ID && topicName.isPartitioned()
+                        ? topicName.getPartitionIndex()
+                        : partitionId;
         this.range = checkNotNull(range);
     }
 

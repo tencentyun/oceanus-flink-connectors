@@ -24,6 +24,7 @@ import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitsAddition;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitsChange;
+import org.apache.flink.connector.pulsar.common.request.PulsarAdminRequest;
 import org.apache.flink.connector.pulsar.source.config.SourceConfiguration;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.StopCursor;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.StopCursor.StopCondition;
@@ -31,7 +32,6 @@ import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicPartition;
 import org.apache.flink.connector.pulsar.source.split.PulsarPartitionSplit;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.CryptoKeyReader;
@@ -60,7 +60,7 @@ abstract class PulsarPartitionSplitReaderBase
     private static final Logger LOG = LoggerFactory.getLogger(PulsarPartitionSplitReaderBase.class);
 
     protected final PulsarClient pulsarClient;
-    protected final PulsarAdmin pulsarAdmin;
+    protected final PulsarAdminRequest adminRequest;
     protected final SourceConfiguration sourceConfiguration;
     protected final Schema<byte[]> schema;
     @Nullable protected final CryptoKeyReader cryptoKeyReader;
@@ -70,12 +70,12 @@ abstract class PulsarPartitionSplitReaderBase
 
     protected PulsarPartitionSplitReaderBase(
             PulsarClient pulsarClient,
-            PulsarAdmin pulsarAdmin,
+            PulsarAdminRequest adminRequest,
             SourceConfiguration sourceConfiguration,
             Schema<byte[]> schema,
             @Nullable CryptoKeyReader cryptoKeyReader) {
         this.pulsarClient = pulsarClient;
-        this.pulsarAdmin = pulsarAdmin;
+        this.adminRequest = adminRequest;
         this.sourceConfiguration = sourceConfiguration;
         this.schema = schema;
         this.cryptoKeyReader = cryptoKeyReader;
@@ -154,7 +154,7 @@ abstract class PulsarPartitionSplitReaderBase
         this.registeredSplit = newSplits.get(0);
 
         // Open stop cursor.
-        registeredSplit.open(pulsarAdmin);
+        registeredSplit.open(adminRequest.pulsarAdmin());
 
         // Before creating the consumer.
         beforeCreatingConsumer(registeredSplit);
