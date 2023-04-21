@@ -79,7 +79,9 @@ public class DynamicTopicRegister<IN> implements TopicRegister<IN> {
                 return topics;
             } catch (PulsarAdminException e) {
                 throw new FlinkRuntimeException(
-                        "Failed to query Pulsar topic partitions.", e.getCause());
+                        String.format(
+                                "Failed to query Pulsar topic partitions, topic name: %s. %s",
+                                topicName, e.getCause()));
             }
         }
     }
